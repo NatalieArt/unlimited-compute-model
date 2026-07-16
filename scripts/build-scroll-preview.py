@@ -7,17 +7,17 @@ from PIL import Image
 
 
 FRAME_STEP = 3
-GRID = (4, 4)
+GRID = (4, 1)
 QUALITY = 70
 TRACKS = {
     "desktop": {
         "tile": (960, 540),
-        "sheet": (3840, 2160),
+        "sheet": (3840, 540),
         "crop": False,
     },
     "mobile": {
         "tile": (450, 800),
-        "sheet": (1800, 3200),
+        "sheet": (1800, 800),
         "crop": True,
     },
 }

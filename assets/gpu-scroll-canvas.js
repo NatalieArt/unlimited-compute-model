@@ -1,10 +1,10 @@
 (function (global) {
   'use strict';
 
-  var MAX_CONCURRENT = 6;
   var DESKTOP_CACHE_LIMIT = 16;
   var MOBILE_CACHE_LIMIT = 10;
-  var NEIGHBOR_RADIUS = 3;
+  var PREVIEW_SHEET_CACHE_LIMIT = 5;
+  var PREVIEW_LOOKAHEAD = 4;
   var SETTLE_DELAY = 120;
   var MAX_DPR = 2;
 
@@ -49,16 +49,14 @@
 
     var loaded = new Map();
     var failed = new Set();
-    var queued = new Set();
-    var urgentQueued = new Set();
-    var loading = new Set();
     var previewSheets = new Map();
+    var previewLoading = new Set();
     var previewFailed = new Set();
+    var previewCenterSheet = 0;
+    var previewDirection = 1;
     var exactLoadingImage = null;
     var exactLoadingIndex = -1;
     var exactLoadToken = 0;
-    var queue = [];
-    var activeLoads = 0;
     var targetFrame = 0;
     var drawnFrame = -1;
     var renderMode = '';
@@ -249,38 +247,78 @@
       if (settleTimer) global.clearTimeout(settleTimer);
       settleTimer = global.setTimeout(function () {
         settleTimer = 0;
+        ensureExactTarget(targetFrame);
         scheduleDraw();
       }, SETTLE_DELAY + 16);
     }
 
-    function loadPreviewSheets() {
-      if (!previewRoot || !previewSheetCount || !previewTileWidth || !previewTileHeight) return;
-
-      for (var sheetIndex = 0; sheetIndex < previewSheetCount; sheetIndex += 1) {
-        (function loadPreviewSheet(index) {
-          var image = new Image();
-          var finished = false;
-          if ('fetchPriority' in image) image.fetchPriority = 'high';
-          image.decoding = 'async';
-          image.onload = function () {
-            decodeImage(image, function () {
-              if (finished) return;
-              finished = true;
-              if (!destroyed) {
-                previewSheets.set(index, image);
-                scheduleDraw();
-              }
-            });
-          };
-          image.onerror = function () {
-            if (finished) return;
-            finished = true;
-            previewFailed.add(index);
-            canvas.setAttribute('data-preview-errors', String(previewFailed.size));
-          };
-          image.src = previewUrl(index);
-        })(sheetIndex);
+    function trimPreviewSheets(centerSheet) {
+      if (previewSheets.size <= PREVIEW_SHEET_CACHE_LIMIT) return;
+      var keep = new Set();
+      for (var distance = 0; distance <= PREVIEW_LOOKAHEAD; distance += 1) {
+        var keepIndex = centerSheet + distance * previewDirection;
+        if (keepIndex >= 0 && keepIndex < previewSheetCount) keep.add(keepIndex);
       }
+      var candidates = Array.from(previewSheets.keys()).sort(function (a, b) {
+        if (keep.has(a) !== keep.has(b)) return keep.has(a) ? 1 : -1;
+        return Math.abs(b - centerSheet) - Math.abs(a - centerSheet);
+      });
+      while (previewSheets.size > PREVIEW_SHEET_CACHE_LIMIT && candidates.length) {
+        var index = candidates.shift();
+        if (index !== centerSheet) previewSheets.delete(index);
+      }
+    }
+
+    function loadPreviewAhead() {
+      for (var distance = 1; distance <= PREVIEW_LOOKAHEAD; distance += 1) {
+        loadPreviewSheet(previewCenterSheet + distance * previewDirection, true);
+      }
+    }
+
+    function loadPreviewSheet(index, urgent) {
+      if (index < 0 || index >= previewSheetCount) return;
+      if (previewSheets.has(index) || previewLoading.has(index) || previewFailed.has(index)) return;
+
+      var image = new Image();
+      var finished = false;
+      previewLoading.add(index);
+      if ('fetchPriority' in image) image.fetchPriority = urgent ? 'high' : 'low';
+      image.decoding = 'async';
+      image.onload = function () {
+        decodeImage(image, function () {
+          if (finished) return;
+          finished = true;
+          previewLoading.delete(index);
+          if (!destroyed) {
+            previewSheets.set(index, image);
+            trimPreviewSheets(previewCenterSheet);
+            scheduleDraw();
+            if (index === previewCenterSheet) loadPreviewAhead();
+          }
+        });
+      };
+      image.onerror = function () {
+        if (finished) return;
+        finished = true;
+        previewLoading.delete(index);
+        previewFailed.add(index);
+        canvas.setAttribute('data-preview-errors', String(previewFailed.size));
+      };
+      image.src = previewUrl(index);
+    }
+
+    function ensurePreviewSheets(frame, direction) {
+      if (!previewRoot || !previewSheetCount || !previewTileWidth || !previewTileHeight) return;
+      previewDirection = direction < 0 ? -1 : 1;
+      var previewIndex = clamp(Math.round(frame / previewStep), 0, previewCount - 1);
+      previewCenterSheet = Math.floor(previewIndex / previewTilesPerSheet);
+      loadPreviewSheet(previewCenterSheet, true);
+      if (previewSheets.has(previewCenterSheet)) loadPreviewAhead();
+      trimPreviewSheets(previewCenterSheet);
+    }
+
+    function loadPreviewSheets() {
+      ensurePreviewSheets(0, 1);
     }
 
     function abortExactLoad() {
@@ -301,13 +339,7 @@
     function ensureExactTarget(index) {
       index = clamp(Math.round(index), 0, frameCount - 1);
       if (exactLoadingIndex >= 0 && exactLoadingIndex !== index) abortExactLoad();
-      if (loaded.has(index) || failed.has(index) || loading.has(index) || exactLoadingIndex === index) return;
-
-      if (queued.has(index)) {
-        queue = queue.filter(function (candidate) { return candidate !== index; });
-        queued.delete(index);
-        urgentQueued.delete(index);
-      }
+      if (loaded.has(index) || failed.has(index) || exactLoadingIndex === index) return;
 
       abortExactLoad();
       exactLoadingIndex = index;
@@ -337,104 +369,17 @@
       image.src = frameUrl(index);
     }
 
-    function pumpQueue() {
-      while (!destroyed && activeLoads < MAX_CONCURRENT && queue.length) {
-        var nextIndex = queue.shift();
-        var nextUrgent = urgentQueued.has(nextIndex);
-        (function loadNext(index, urgent) {
-          queued.delete(index);
-          urgentQueued.delete(index);
-          if (loaded.has(index) || failed.has(index) || exactLoadingIndex === index) return;
-
-          activeLoads += 1;
-          loading.add(index);
-          var image = new Image();
-          var finished = false;
-          if ('fetchPriority' in image) image.fetchPriority = urgent ? 'high' : 'low';
-          image.decoding = 'async';
-
-          function finishLoad() {
-            if (finished) return false;
-            finished = true;
-            activeLoads -= 1;
-            loading.delete(index);
-            return true;
-          }
-
-          image.onload = function () {
-            decodeImage(image, function () {
-              if (!finishLoad()) return;
-              if (!destroyed) {
-                loaded.set(index, image);
-                trimCache();
-                scheduleDraw();
-              }
-              pumpQueue();
-            });
-          };
-          image.onerror = function () {
-            if (!finishLoad()) return;
-            failed.add(index);
-            canvas.setAttribute('data-load-errors', String(failed.size));
-            pumpQueue();
-          };
-          image.src = frameUrl(index);
-        })(nextIndex, nextUrgent);
-      }
-    }
-
-    function enqueue(index, urgent) {
-      index = clamp(Math.round(index), 0, frameCount - 1);
-      if (loaded.has(index) || failed.has(index) || loading.has(index) || exactLoadingIndex === index) return;
-      if (queued.has(index)) {
-        if (urgent && !urgentQueued.has(index)) {
-          urgentQueued.add(index);
-          queue = queue.filter(function (candidate) { return candidate !== index; });
-          queue.unshift(index);
-        }
-        return;
-      }
-      queued.add(index);
-      if (urgent) {
-        urgentQueued.add(index);
-        queue.unshift(index);
-      } else {
-        queue.push(index);
-      }
-      pumpQueue();
-    }
-
-    function enqueueNeighborhood(index, direction) {
-      for (var distance = NEIGHBOR_RADIUS; distance >= 1; distance -= 1) {
-        enqueue(index - distance * direction, true);
-        enqueue(index + distance * direction, true);
-      }
-      enqueue(index, true);
-    }
-
-    function pruneQueue(index) {
-      queue = queue.filter(function (candidate) {
-        var keep = Math.abs(candidate - index) <= NEIGHBOR_RADIUS + 2;
-        if (!keep) {
-          queued.delete(candidate);
-          urgentQueued.delete(candidate);
-        }
-        return keep;
-      });
-    }
-
     function setProgress(progress) {
       var nextTarget = Math.round(clamp(Number(progress) || 0, 0, 1) * (frameCount - 1));
       var direction = nextTarget >= targetFrame ? 1 : -1;
       if (nextTarget !== targetFrame) {
-        pruneQueue(nextTarget);
         targetFrame = nextTarget;
         lastTargetChange = Date.now();
+        if (exactLoadingIndex >= 0 && exactLoadingIndex !== targetFrame) abortExactLoad();
         armSettleDraw();
       }
       canvas.setAttribute('data-target-frame', String(targetFrame));
-      ensureExactTarget(targetFrame);
-      enqueueNeighborhood(targetFrame, direction);
+      ensurePreviewSheets(targetFrame, direction);
       scheduleDraw();
     }
 
@@ -443,12 +388,9 @@
       if (drawRequest) global.cancelAnimationFrame(drawRequest);
       if (settleTimer) global.clearTimeout(settleTimer);
       abortExactLoad();
-      queue.length = 0;
-      queued.clear();
-      urgentQueued.clear();
-      loading.clear();
       loaded.clear();
       previewSheets.clear();
+      previewLoading.clear();
     }
 
     function getState() {
@@ -456,14 +398,15 @@
         targetFrame: targetFrame,
         drawnFrame: drawnFrame,
         renderMode: renderMode,
-        activeLoads: loading.size,
+        activeLoads: exactLoadingIndex >= 0 ? 1 : 0,
         cacheSize: loaded.size,
         failedCount: failed.size,
-        queueSize: queue.length,
+        queueSize: 0,
         cacheLimit: cacheLimit,
         exactLoadingIndex: exactLoadingIndex,
         previewVariant: previewVariant,
         previewSheetCount: previewSheets.size,
+        previewLoadingCount: previewLoading.size,
         previewFailedCount: previewFailed.size
       };
     }

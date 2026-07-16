@@ -33,25 +33,27 @@ for (const track of [
   {
     name: 'desktop',
     directory: 'gpu-scroll-preview-desktop',
-    dimensions: '3840,2160',
+    dimensions: '3840,540',
     budget: 8 * 1024 * 1024,
   },
   {
     name: 'mobile',
     directory: 'gpu-scroll-preview-mobile',
-    dimensions: '1800,3200',
+    dimensions: '1800,800',
     budget: 5.5 * 1024 * 1024,
   },
 ]) {
   const previewDir = path.join(root, 'assets', track.directory);
   const previewSheets = fs.existsSync(previewDir)
-    ? fs.readdirSync(previewDir).filter((name) => /^sheet-[0-7]\.webp$/.test(name)).sort()
+    ? fs.readdirSync(previewDir)
+      .filter((name) => /^sheet-(?:[0-9]|[12][0-9]|30)\.webp$/.test(name))
+      .sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]))
     : [];
 
   assert.deepEqual(
     previewSheets,
-    Array.from({ length: 8 }, (_, index) => `sheet-${index}.webp`),
-    `expected eight ${track.name} preview sheets, found ${previewSheets.join(', ') || 'none'}`,
+    Array.from({ length: 31 }, (_, index) => `sheet-${index}.webp`),
+    `expected thirty-one ${track.name} preview sheets, found ${previewSheets.join(', ') || 'none'}`,
   );
 
   let previewBytes = 0;
@@ -81,20 +83,29 @@ assert.ok(fs.existsSync(runtimePath), 'canvas runtime must exist');
 const runtime = fs.readFileSync(runtimePath, 'utf8');
 
 for (const contract of [
-  'MAX_CONCURRENT = 6',
   'DESKTOP_CACHE_LIMIT = 16',
   'MOBILE_CACHE_LIMIT = 10',
-  'NEIGHBOR_RADIUS = 3',
+  'PREVIEW_SHEET_CACHE_LIMIT = 5',
+  'PREVIEW_LOOKAHEAD = 4',
   'SETTLE_DELAY = 120',
-  'var loading = new Set()',
-  'loading.has(index)',
-  'urgentQueued',
   'fetchPriority',
   'image.decode',
   'loadPreviewSheets',
+  'ensurePreviewSheets',
+  'function loadPreviewAhead()',
+  'if (index === previewCenterSheet) loadPreviewAhead();',
+  'if (previewSheets.has(previewCenterSheet)) loadPreviewAhead();',
+  'ensurePreviewSheets(targetFrame, direction)',
+  'previewLoading',
+  'previewLoadingCount: previewLoading.size',
+  'previewDirection',
+  'previewCenterSheet + distance * previewDirection',
+  'distance <= PREVIEW_LOOKAHEAD',
   'drawSharpPreview',
   'ensureExactTarget',
+  'ensureExactTarget(targetFrame);',
   'exactLoadingImage',
+  'if (exactLoadingIndex >= 0 && exactLoadingIndex !== targetFrame) abortExactLoad();',
   'data-preview-root-mobile',
   'data-preview-root-desktop',
   'previewVariant',
@@ -102,7 +113,6 @@ for (const contract of [
   'preview-sharp',
   'Math.round(frame / previewStep)',
   'full-fallback',
-  'pruneQueue',
   'data-target-frame',
   'requestAnimationFrame',
   'drawImage',
@@ -116,10 +126,14 @@ assert.ok(!runtime.includes('idleCursor'), 'runtime must not background-load the
 assert.ok(!runtime.includes('SPARSE_BATCH_SIZE'), 'sparse keyframes must not be artificially delayed in batches');
 assert.ok(!runtime.includes('warmNavigationFrames'), 'runtime must not warm sparse full-resolution navigation frames');
 assert.ok(!runtime.includes('navigationFrames'), 'runtime must not keep a sparse full-resolution navigation set');
+assert.ok(!runtime.includes('MAX_CONCURRENT'), 'runtime must not run background full-resolution downloads during motion');
+assert.ok(!runtime.includes('NEIGHBOR_RADIUS'), 'runtime must not prefetch full-resolution neighbors during motion');
+assert.ok(!runtime.includes('enqueueNeighborhood'), 'runtime must not enqueue exact-frame neighborhoods during motion');
+assert.ok(!runtime.includes('pumpQueue'), 'runtime must not maintain a background exact-frame queue');
 assert.ok(!runtime.includes('var mix ='), 'runtime must not crossfade moving object positions');
 assert.ok(
-  runtime.indexOf('enqueue(index - distance * direction, true)') < runtime.indexOf('enqueue(index + distance * direction, true)'),
-  'reverse neighbor must be queued before forward neighbor so unshift prioritizes the scroll direction',
+  !runtime.includes('loadPreviewSheet(previewCenterSheet - direction'),
+  'runtime must reserve the five-sheet preview cache for the current scroll direction',
 );
 
 new Function(runtime);
@@ -138,21 +152,27 @@ for (const contract of [
   'data-preview-count="121"',
   'data-preview-step="3"',
   'data-preview-columns="4"',
-  'data-preview-rows="4"',
-  'data-frame-version="canvas9"',
+  'data-preview-rows="1"',
+  'data-frame-version="canvas17"',
 ]) {
   assert.ok(html.includes(contract), `canvas must include ${contract}`);
 }
-assert.ok(html.includes('assets/gpu-scroll-canvas.js?v=canvas9'), 'HTML must load the current canvas runtime');
-for (const index of Array.from({ length: 8 }, (_, value) => value)) {
-  assert.ok(
-    html.includes(`rel="preload" href="assets/gpu-scroll-preview-desktop/sheet-${index}.webp?v=canvas9" media="(min-width: 721px)" as="image" type="image/webp" fetchpriority="high"`),
-    `HTML must preload desktop preview sheet ${index}`,
-  );
-  assert.ok(
-    html.includes(`rel="preload" href="assets/gpu-scroll-preview-mobile/sheet-${index}.webp?v=canvas9" media="(max-width: 720px)" as="image" type="image/webp" fetchpriority="high"`),
-    `HTML must preload mobile preview sheet ${index}`,
-  );
+assert.ok(html.includes('assets/gpu-scroll-canvas.js?v=canvas17'), 'HTML must load the current canvas runtime');
+assert.ok(
+  !html.includes('<link rel="preload" href="assets/gpu-scroll-preview-'),
+  'HTML must not statically preload both device tracks',
+);
+for (const contract of [
+  "var previewVariant = window.matchMedia('(max-width: 720px)').matches ? 'mobile' : 'desktop';",
+  'for (var index = 0; index < 31; index += 1)',
+  "link.rel = 'preload';",
+  "link.as = 'image';",
+  "link.type = 'image/webp';",
+  "link.fetchPriority = 'high';",
+  "link.href = 'assets/gpu-scroll-preview-' + previewVariant + '/sheet-' + index + '.webp?v=canvas17';",
+  'document.head.appendChild(link);',
+]) {
+  assert.ok(html.includes(contract), `HTML must include selected-track preload contract: ${contract}`);
 }
 assert.ok(!html.includes('<video class="scrolly-video"'), 'banner video must be removed');
 assert.ok(!html.includes('currentTime'), 'HTML must not seek video');

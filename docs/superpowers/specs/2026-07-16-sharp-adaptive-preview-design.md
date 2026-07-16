@@ -14,17 +14,18 @@ Create two device-specific preview tracks from the existing 361 exact frames:
 
 - Desktop track: 121 landscape tiles, 960×540, source frames 0 through 360 in steps of 3.
 - Mobile track: 121 center-cropped portrait tiles, 450×800, source frames 0 through 360 in steps of 3.
-- Encode both tracks as WebP at quality 70 and pack 16 row-major tiles into each of eight sheets.
-- Desktop sheets are 3840×2160. Mobile sheets are 1800×3200.
+- Encode both tracks as WebP at quality 70 and pack 4 row-major tiles into each of thirty-one sheets.
+- Desktop sheets are 3840×540. Mobile sheets are 1800×800.
 - Draw the nearest preview tile at full opacity instead of crossfading two moving objects. Keep the exact 1600×900 settle frame.
 
-The HTML preloads only the track selected by a media query. The runtime selects the matching metadata at startup, so a device never downloads both preview tracks.
+An inline head script checks the existing 720 px media query and creates preload links only for the selected track. The runtime selects the matching metadata at startup, so a device never downloads both preview tracks.
 
 ## Loading and Memory
 
-- Keep all eight selected preview sheets ready before the user reaches the scroll banner.
-- Use `fetchpriority="high"` preloads in the document head.
-- Keep the exact-frame priority loader introduced in canvas8.
+- Request all thirty-one selected preview sheets before the user reaches the scroll banner, but decode only a five-sheet directional window around the current preview frame.
+- Use `fetchpriority="high"` for all thirty-one compressed sheets so extreme forward scrolls never wait on a low-priority network request. Only the five-sheet directional window is decoded.
+- Decode the current sheet first so the requested frame can be painted immediately, then decode four sheets ahead in the current scroll direction. On direction changes, the current sheet remains visible while the five-sheet window pivots. The browser HTTP cache retains compressed responses for fast section changes.
+- During motion, do not request exact-frame neighborhoods. After 120 ms without a target change, request only the single exact target frame at high priority.
 - Reduce exact-frame caches to 16 frames on desktop and 10 on mobile, because the high-resolution preview remains available for backward and rapid movement.
 - Target no more than 8 MiB compressed transfer for the desktop preview track and 5.5 MiB for the mobile preview track.
 
@@ -43,7 +44,7 @@ The runtime must continue to support browsers without `fetchPriority` or `image.
 
 ## Verification
 
-- Automated tests verify eight-sheet counts, dimensions, byte budgets, nearest-frame rendering without alpha blending, runtime metadata, syntax, selected cache limits, and canvas9 cache busting.
+- Automated tests verify thirty-one-sheet counts, dimensions, byte budgets, nearest-frame rendering without alpha blending, current-first directional five-sheet loading, selected-track preloading, settle-only exact loading, runtime metadata, syntax, selected cache limits, and canvas17 cache busting.
 - Local and public cold-cache QA cover 1440×900 and 390×844.
 - Rapid-motion samples must use `preview-sharp` without load errors.
 - The stopped target must become exact `full` within one second.
