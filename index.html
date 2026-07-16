@@ -1396,7 +1396,7 @@ body[data-bn-current^="newsletter"]::after {
     video.addEventListener('loadedmetadata', function(){ dur = video.duration; });
     /* over the network, per-seek range requests stall the scrub — prefetch the whole
        file into memory and scrub from the blob (no-op on file://, where fetch fails) */
-    try {
+    if (location.protocol === 'http:' || location.protocol === 'https:') try {
       fetch(video.getAttribute('src')).then(function(r){ return r.ok ? r.blob() : null; })
         .then(function(b){
           if (!b) return;
