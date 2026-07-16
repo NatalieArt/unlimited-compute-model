@@ -1394,19 +1394,28 @@ body[data-bn-current^="newsletter"]::after {
 
     var dur = 0, current = 0;
     video.addEventListener('loadedmetadata', function(){ dur = video.duration; });
-    /* over the network, per-seek range requests stall the scrub — prefetch the whole
-       file into memory and scrub from the blob (no-op on file://, where fetch fails) */
+    /* tiered loading over the network: a small proxy streams instantly and becomes
+       fully smooth within seconds; full quality downloads in the background and swaps
+       in seamlessly. On file:// the full file plays straight from disk. */
     if (location.protocol === 'http:' || location.protocol === 'https:') try {
-      fetch(video.getAttribute('src')).then(function(r){ return r.ok ? r.blob() : null; })
-        .then(function(b){
-          if (!b) return;
-          var t = video.currentTime;
-          video.src = URL.createObjectURL(b);
-          video.addEventListener('loadedmetadata', function once(){
-            video.removeEventListener('loadedmetadata', once);
-            try { video.currentTime = t; } catch(e){}
-          });
-        }).catch(function(){});
+      var fullSrc = video.getAttribute('src');
+      var proxySrc = fullSrc.replace('.mp4', '-proxy.mp4');
+      var gen = 0;
+      var swap = function(blob, myGen){
+        if (myGen < gen) return;
+        gen = myGen;
+        var t = video.currentTime;
+        video.src = URL.createObjectURL(blob);
+        video.addEventListener('loadedmetadata', function once(){
+          video.removeEventListener('loadedmetadata', once);
+          try { video.currentTime = t; } catch(e){}
+        });
+      };
+      video.src = proxySrc;
+      fetch(proxySrc).then(function(r){ return r.ok ? r.blob() : null; })
+        .then(function(b){ if (b) swap(b, 1); }).catch(function(){});
+      fetch(fullSrc).then(function(r){ return r.ok ? r.blob() : null; })
+        .then(function(b){ if (b) swap(b, 2); }).catch(function(){});
     } catch(e){}
 
     function progress(){
