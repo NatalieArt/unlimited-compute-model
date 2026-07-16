@@ -127,22 +127,29 @@ const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 assert.ok(html.includes('<canvas class="scrolly-canvas"'), 'banner must use canvas');
 assert.ok(html.includes('data-frame-count="361"'), 'canvas must declare 361 frames');
 for (const contract of [
-  'data-preview-root="assets/gpu-scroll-preview/sheet-"',
+  'data-preview-root-desktop="assets/gpu-scroll-preview-desktop/sheet-"',
+  'data-preview-width-desktop="960"',
+  'data-preview-height-desktop="540"',
+  'data-preview-root-mobile="assets/gpu-scroll-preview-mobile/sheet-"',
+  'data-preview-width-mobile="450"',
+  'data-preview-height-mobile="800"',
   'data-preview-count="61"',
   'data-preview-step="6"',
   'data-preview-columns="4"',
   'data-preview-rows="4"',
-  'data-preview-tile-width="480"',
-  'data-preview-tile-height="270"',
-  'data-frame-version="canvas8"',
+  'data-frame-version="canvas9"',
 ]) {
   assert.ok(html.includes(contract), `canvas must include ${contract}`);
 }
-assert.ok(html.includes('assets/gpu-scroll-canvas.js?v=canvas8'), 'HTML must load the current canvas runtime');
+assert.ok(html.includes('assets/gpu-scroll-canvas.js?v=canvas9'), 'HTML must load the current canvas runtime');
 for (const index of [0, 1, 2, 3]) {
   assert.ok(
-    html.includes(`rel="preload" href="assets/gpu-scroll-preview/sheet-${index}.webp?v=canvas8" as="image" type="image/webp" fetchpriority="high"`),
-    `HTML must preload preview sprite sheet ${index}`,
+    html.includes(`rel="preload" href="assets/gpu-scroll-preview-desktop/sheet-${index}.webp?v=canvas9" media="(min-width: 721px)" as="image" type="image/webp" fetchpriority="high"`),
+    `HTML must preload desktop preview sheet ${index}`,
+  );
+  assert.ok(
+    html.includes(`rel="preload" href="assets/gpu-scroll-preview-mobile/sheet-${index}.webp?v=canvas9" media="(max-width: 720px)" as="image" type="image/webp" fetchpriority="high"`),
+    `HTML must preload mobile preview sheet ${index}`,
   );
 }
 assert.ok(!html.includes('<video class="scrolly-video"'), 'banner video must be removed');
