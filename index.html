@@ -82,7 +82,7 @@
   @supports(height:100svh){.scrolly{margin-bottom:-100svh}}
   .scrolly ~ *{position:relative;z-index:1}
   .scrolly-sticky{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden;background:#020302 url('assets/gpu-scroll-web-poster.jpg?v=20260716b') center/cover no-repeat}
-  .scrolly-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform-origin:center;will-change:transform}
+  .scrolly-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;transform-origin:center;will-change:transform}
   .scrolly-vignette{position:absolute;inset:0;pointer-events:none;
     background:radial-gradient(ellipse at center,transparent 42%,rgba(2,4,2,.55) 100%),
                linear-gradient(180deg,rgba(2,4,2,.4),transparent 22%,transparent 78%,rgba(2,4,2,.5))}
@@ -1180,7 +1180,7 @@ body[data-bn-current^="newsletter"]::after {
 <!-- SCROLL-DRIVEN 3D BANNER -->
 <section class="scrolly" id="scrolly">
   <div class="scrolly-sticky">
-    <video class="scrolly-video" src="assets/gpu-scroll-web.mp4?v=20260716b" poster="assets/gpu-scroll-web-poster.jpg?v=20260716b" muted playsinline preload="auto" aria-label="A consumer GPU drifting through a psychedelic compute vortex"></video>
+    <canvas class="scrolly-canvas" data-frame-root="assets/gpu-scroll-frames/frame-" data-frame-count="361" data-frame-pad="3" data-frame-version="canvas1" role="img" aria-label="A consumer GPU drifting through a psychedelic compute vortex"></canvas>
     <div class="scrolly-vignette"></div>
 
     <div class="scrolly-cap" data-from="0" data-to="0.20">
@@ -1375,52 +1375,29 @@ body[data-bn-current^="newsletter"]::after {
   </div>
 </footer>
 
+<script src="assets/gpu-scroll-canvas.js?v=canvas1"></script>
 <script>
-  /* scroll-driven video scrubbing + captions */
+  /* scroll-driven canvas frames + captions */
   (function(){
     var wrap = document.getElementById('scrolly');
     if (!wrap) return;
-    var video = wrap.querySelector('.scrolly-video');
+    var canvas = wrap.querySelector('.scrolly-canvas');
     var caps = [].slice.call(wrap.querySelectorAll('.scrolly-cap'));
 
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches){
-      video.classList.add('is-ready');
-      video.loop = true;
-      video.autoplay = true;
-      video.play().catch(function(){});
       caps[caps.length-1].style.opacity = 1;
       wrap.style.height = '100svh';
       wrap.style.marginBottom = '0';
       return;
     }
 
-    var dur = 0, current = 0;
-    var pendingTime = 0, lastSeekAt = 0;
-    var seekInterval = 1000 / 24;
+    var renderer = window.SogniScrollCanvas && window.SogniScrollCanvas.create(canvas);
 
     function progress(){
       var r = wrap.getBoundingClientRect();
       /* minus 2 viewports: one for the sticky itself, one for the overlapped hand-off to the article */
       var total = r.height - 2 * window.innerHeight;
       return total > 0 ? Math.max(0, Math.min(1, -r.top / total)) : 0;
-    }
-    function syncInitialFrame(){
-      dur = video.duration || 0;
-      if (!dur) return;
-      current = progress() * (dur - 0.05);
-      var reveal = function(){ video.classList.add('is-ready'); };
-      video.addEventListener('seeked', reveal, {once:true});
-      video.addEventListener('loadeddata', reveal, {once:true});
-      try { video.currentTime = current; } catch(e){}
-      if (video.readyState >= 2 && Math.abs(video.currentTime - current) < 0.04) reveal();
-    }
-    if (video.readyState >= 1) syncInitialFrame();
-    else video.addEventListener('loadedmetadata', syncInitialFrame, {once:true});
-    function requestVideoTime(time, now){
-      pendingTime = time;
-      if (video.seeking || now - lastSeekAt < seekInterval) return;
-      lastSeekAt = now;
-      try { video.currentTime = pendingTime; } catch(e){}
     }
     function onScreen(){
       var r = wrap.getBoundingClientRect();
@@ -1437,23 +1414,18 @@ body[data-bn-current^="newsletter"]::after {
 
     var dim = wrap.querySelector('.scrolly-dim');
     var stickyStars = [].slice.call(wrap.querySelectorAll('.stars'));
-    function render(now){
+    function render(){
       if (onScreen()){
         var p = progress();
         /* keep the scroll hint up until the animation is nearly done */
         wrap.classList.toggle('started', p > 0.9);
-        if (dur){
-          var target = p * (dur - 0.05);
-          current += (target - current) * 0.22;
-          if (Math.abs(target - current) > 1.5) current = target;
-          requestVideoTime(current, now);
-        }
+        if (renderer) renderer.setProgress(p);
         /* gentle settle for most of the ride, then an accelerating pull into the tunnel;
            a slight spin makes the pull readable even on the smooth vortex frames */
         var s, rot = 0;
         if (p < 0.8){ s = 1.12 - 0.12 * (p / 0.8); }
         else { var q = (p - 0.8) / 0.2; s = 1 + 1.1 * q * q; rot = 10 * q * q; }
-        video.style.transform = 'scale(' + s.toFixed(4) + ') rotate(' + rot.toFixed(2) + 'deg)';
+        canvas.style.transform = 'scale(' + s.toFixed(4) + ') rotate(' + rot.toFixed(2) + 'deg)';
         caps.forEach(function(c){
           var a = parseFloat(c.dataset.from), b = parseFloat(c.dataset.to);
           c.style.opacity = fade(p, a, b);
@@ -1467,6 +1439,10 @@ body[data-bn-current^="newsletter"]::after {
       }
       requestAnimationFrame(render);
     }
+    function resizeCanvas(){ if (renderer) renderer.resize(); }
+    window.addEventListener('resize', resizeCanvas, {passive:true});
+    window.addEventListener('orientationchange', resizeCanvas, {passive:true});
+    window.addEventListener('pagehide', function(){ if (renderer) renderer.destroy(); }, {once:true});
     requestAnimationFrame(render);
   })();
 

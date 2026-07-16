@@ -43,3 +43,21 @@ assert.ok(!runtime.includes('currentTime'), 'canvas runtime must not seek video'
 
 new Function(runtime);
 console.log('PASS: canvas runtime contract and syntax are valid');
+
+const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+assert.ok(html.includes('<canvas class="scrolly-canvas"'), 'banner must use canvas');
+assert.ok(html.includes('data-frame-count="361"'), 'canvas must declare 361 frames');
+assert.ok(html.includes('assets/gpu-scroll-canvas.js?v=canvas1'), 'HTML must load the canvas runtime');
+assert.ok(!html.includes('<video class="scrolly-video"'), 'banner video must be removed');
+assert.ok(!html.includes('currentTime'), 'HTML must not seek video');
+
+for (const range of [
+  'data-from="0" data-to="0.20"',
+  'data-from="0.24" data-to="0.46"',
+  'data-from="0.50" data-to="0.72"',
+  'data-from="0.76" data-to="0.94"',
+]) {
+  assert.ok(html.includes(range), `caption range ${range} must remain`);
+}
+
+console.log('PASS: HTML uses canvas and preserves caption timing');
