@@ -22,8 +22,8 @@ An inline head script checks the existing 720 px media query and creates preload
 
 ## Loading and Memory
 
-- Request all thirty-one selected preview sheets before the user reaches the scroll banner, but decode only a five-sheet directional window around the current preview frame.
-- Use `fetchpriority="high"` for all thirty-one compressed sheets so extreme forward scrolls never wait on a low-priority network request. Only the five-sheet directional window is decoded.
+- Request the first ten selected preview sheets immediately at high priority. After 750 ms, request sheets 10 through 30 at low priority so they warm in the background without competing with the first visible frame.
+- Decode only a five-sheet directional window around the current preview frame; an urgent runtime request can still fetch a later current sheet directly.
 - Decode the current sheet first so the requested frame can be painted immediately, then decode four sheets ahead in the current scroll direction. On direction changes, the current sheet remains visible while the five-sheet window pivots. The browser HTTP cache retains compressed responses for fast section changes.
 - During motion, do not request exact-frame neighborhoods. After 120 ms without a target change, request only the single exact target frame at high priority.
 - Reduce exact-frame caches to 16 frames on desktop and 10 on mobile, because the high-resolution preview remains available for backward and rapid movement.
@@ -44,7 +44,7 @@ The runtime must continue to support browsers without `fetchPriority` or `image.
 
 ## Verification
 
-- Automated tests verify thirty-one-sheet counts, dimensions, byte budgets, nearest-frame rendering without alpha blending, current-first directional five-sheet loading, selected-track preloading, settle-only exact loading, runtime metadata, syntax, selected cache limits, and canvas17 cache busting.
+- Automated tests verify thirty-one-sheet counts, dimensions, byte budgets, nearest-frame rendering without alpha blending, current-first directional five-sheet loading, staged selected-track preloading, settle-only exact loading, runtime metadata, syntax, selected cache limits, and canvas18 cache busting.
 - Local and public cold-cache QA cover 1440×900 and 390×844.
 - Rapid-motion samples must use `preview-sharp` without load errors.
 - The stopped target must become exact `full` within one second.

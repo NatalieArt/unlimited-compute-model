@@ -15,12 +15,12 @@
 - Both tracks contain source frames 0 through 360 in steps of 3 and use WebP quality 70.
 - Desktop preview transfer is at most 8 MiB; mobile preview transfer is at most 5.5 MiB.
 - Only the breakpoint-selected preview track is dynamically preloaded and selected; static links for both tracks are forbidden.
-- All thirty-one compressed preview sheets preload at high priority; only the directional five-sheet window is decoded.
+- The first ten compressed preview sheets preload immediately at high priority; sheets 10–30 begin 750 ms later at low priority.
 - Decode the current preview sheet first; only after it is ready, fill the remaining four slots in the scroll direction.
 - Exact-frame caches are 16 on desktop and 10 on mobile.
 - Full-resolution neighborhoods are never requested during motion; only the stopped target is requested after the 120 ms settle delay.
 - Captions, timing, vignette, dim, stars, reduced motion, layout, and link-preview metadata remain unchanged.
-- Final cache version is canvas17.
+- Final cache version is canvas18.
 
 ---
 
@@ -171,11 +171,11 @@ Expected: all runtime syntax and contract tests pass.
 
 **Interfaces:**
 - Produces matching desktop/mobile preload URLs and canvas metadata for Task 2.
-- Loads `assets/gpu-scroll-canvas.js?v=canvas17` and assets with `data-frame-version="canvas17"`.
+- Loads `assets/gpu-scroll-canvas.js?v=canvas18` and assets with `data-frame-version="canvas18"`.
 
 - [ ] **Step 1: Write the failing HTML contract test**
 
-Require the HTML not to contain static preview preload links. Require the inline head script to choose `mobile` or `desktop` with `matchMedia('(max-width: 720px)')`, create thirty-one selected-track image preloads, and assign `fetchPriority = 'high'`. Also require:
+Require the HTML not to contain static preview preload links. Require the inline head script to choose `mobile` or `desktop` with `matchMedia('(max-width: 720px)')`, create sheets 0–9 immediately with high priority, then sheets 10–30 after 750 ms with low priority. Also require:
 
 ```html
 data-preview-root-desktop="assets/gpu-scroll-preview-desktop/sheet-"
@@ -184,7 +184,7 @@ data-preview-height-desktop="540"
 data-preview-root-mobile="assets/gpu-scroll-preview-mobile/sheet-"
 data-preview-width-mobile="450"
 data-preview-height-mobile="800"
-data-frame-version="canvas17"
+data-frame-version="canvas18"
 ```
 
 - [ ] **Step 2: Run the test to verify RED**
@@ -195,7 +195,7 @@ Expected: FAIL because the HTML still declares canvas8 and one generic preview r
 
 - [ ] **Step 3: Add selected-track preload and metadata markup**
 
-Add one inline head script that creates all thirty-one preload links for only the currently selected variant. Set shared metadata to `data-preview-count="121"`, `data-preview-step="3"`, and `data-preview-rows="1"`, keep the six adaptive attributes, and retain runtime plus frame version canvas17.
+Add one inline head script that stages all thirty-one preload links for only the currently selected variant. Set shared metadata to `data-preview-count="121"`, `data-preview-step="3"`, and `data-preview-rows="1"`, keep the six adaptive attributes, and retain runtime plus frame version canvas18.
 
 - [ ] **Step 4: Run tests and commit**
 
@@ -215,7 +215,7 @@ Expected: HTML, inline script syntax, runtime, exact-frame, and both asset-track
 - Copy: both adaptive preview directories to the matching blog assets directory
 
 **Interfaces:**
-- Produces byte-identical repo, blog-folder, and public GitHub Pages canvas17 surfaces.
+- Produces byte-identical repo, blog-folder, and public GitHub Pages canvas18 surfaces.
 
 - [ ] **Step 1: Run local automated verification**
 
@@ -223,7 +223,7 @@ Run `node tests/test-scroll-canvas.mjs`, `git diff --check HEAD`, verify 361 exa
 
 - [ ] **Step 2: Run cold local rendered QA**
 
-Serve on `127.0.0.1`, test 1440×900 and 390×844 using the fresh canvas17 asset version, and rapidly scroll. Require `preview-sharp` during motion, the drawn preview within two target frames on first entry and no full-resolution fallback during continuous motion, exact `full` within one second, no load errors, and no horizontal overflow. Confirm that motion creates no exact-frame neighborhood requests, a cold desktop navigation requests no mobile preview sheets, and a cold mobile navigation requests no desktop preview sheets. Compare moving and settled screenshots for ghosting or an obvious sharpness jump.
+Serve on `127.0.0.1`, test 1440×900 and 390×844 using the fresh canvas18 asset version, and rapidly scroll. Require `preview-sharp` during motion, the drawn preview within two target frames on first entry and no full-resolution fallback during continuous motion, exact `full` within one second, no load errors, and no horizontal overflow. Confirm that motion creates no exact-frame neighborhood requests, a cold desktop navigation requests no mobile preview sheets, and a cold mobile navigation requests no desktop preview sheets. Compare moving and settled screenshots for ghosting or an obvious sharpness jump.
 
 - [ ] **Step 3: Sync and verify the blog folder**
 
@@ -231,7 +231,7 @@ Copy HTML, runtime, desktop preview sheets, and mobile preview sheets. Verify ev
 
 - [ ] **Step 4: Push and wait for ordinary Pages URL**
 
-Push `main`, then poll `https://natalieart.github.io/unlimited-compute-model/` until the ordinary HTML contains canvas17.
+Push `main`, then poll `https://natalieart.github.io/unlimited-compute-model/` until the ordinary HTML contains canvas18.
 
 - [ ] **Step 5: Run cold public desktop and mobile QA**
 
@@ -239,4 +239,4 @@ Repeat the local motion/settle assertions on the public origin. Confirm the netw
 
 - [ ] **Step 6: Leave the ordinary link open**
 
-Reset the temporary viewport, navigate to the ordinary public link, verify canvas17 frame 0 in `full` mode without errors, and keep that tab as the deliverable.
+Reset the temporary viewport, navigate to the ordinary public link, verify canvas18 frame 0 in `full` mode without errors, and keep that tab as the deliverable.
