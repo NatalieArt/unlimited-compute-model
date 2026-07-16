@@ -29,6 +29,39 @@ for (const name of ['frame-000.webp', 'frame-180.webp', 'frame-360.webp']) {
 
 console.log('PASS: 361 WebP frames are present at 1600x900');
 
+const previewDir = path.join(root, 'assets', 'gpu-scroll-preview');
+const previewSheets = fs.existsSync(previewDir)
+  ? fs.readdirSync(previewDir).filter((name) => /^sheet-[0-3]\.webp$/.test(name)).sort()
+  : [];
+
+assert.deepEqual(
+  previewSheets,
+  ['sheet-0.webp', 'sheet-1.webp', 'sheet-2.webp', 'sheet-3.webp'],
+  `expected four preview sprite sheets, found ${previewSheets.join(', ') || 'none'}`,
+);
+
+let previewBytes = 0;
+for (const name of previewSheets) {
+  const filePath = path.join(previewDir, name);
+  const size = fs.statSync(filePath).size;
+  previewBytes += size;
+  assert.ok(size > 1024, `${name} must not be empty or truncated (found ${size} bytes)`);
+
+  const dimensions = execFileSync('ffprobe', [
+    '-v', 'error', '-select_streams', 'v:0',
+    '-show_entries', 'stream=width,height', '-of', 'csv=p=0',
+    filePath,
+  ], { encoding: 'utf8' }).trim();
+  assert.equal(dimensions, '1920,1080', `${name} must be 1920x1080`);
+}
+
+assert.ok(
+  previewBytes <= 4 * 1024 * 1024,
+  `preview sprites must total no more than 4 MiB (found ${previewBytes} bytes)`,
+);
+
+console.log(`PASS: four preview sprite sheets total ${previewBytes} bytes`);
+
 const runtimePath = path.join(root, 'assets', 'gpu-scroll-canvas.js');
 assert.ok(fs.existsSync(runtimePath), 'canvas runtime must exist');
 const runtime = fs.readFileSync(runtimePath, 'utf8');
