@@ -5,7 +5,8 @@
   var DESKTOP_CACHE_LIMIT = 72;
   var MOBILE_CACHE_LIMIT = 36;
   var NEIGHBOR_RADIUS = 8;
-  var NAVIGATION_STEP = 12;
+  var DESKTOP_NAVIGATION_STEP = 30;
+  var MOBILE_NAVIGATION_STEP = 45;
   var MAX_DPR = 2;
 
   var requestIdle = global.requestIdleCallback || function requestIdleCallback(callback) {
@@ -38,19 +39,21 @@
     var version = options.version || canvas.getAttribute('data-frame-version') || '';
     var isMobile = global.matchMedia && global.matchMedia('(max-width: 720px)').matches;
     var cacheLimit = isMobile ? MOBILE_CACHE_LIMIT : DESKTOP_CACHE_LIMIT;
+    var navigationStep = isMobile ? MOBILE_NAVIGATION_STEP : DESKTOP_NAVIGATION_STEP;
 
     if (!frameRoot || frameCount < 1) return null;
 
     var loaded = new Map();
     var failed = new Set();
     var queued = new Set();
+    var loading = new Set();
+    var navigationFrames = new Set([0]);
     var queue = [];
     var activeLoads = 0;
     var targetFrame = 0;
     var drawnFrame = -1;
     var drawRequest = 0;
     var idleRequest = 0;
-    var idleCursor = 1;
     var destroyed = false;
 
     function frameUrl(index) {
@@ -152,10 +155,12 @@
           if (loaded.has(index) || failed.has(index)) return;
 
           activeLoads += 1;
+          loading.add(index);
           var image = new Image();
           image.decoding = 'async';
           image.onload = function () {
             activeLoads -= 1;
+            loading.delete(index);
             if (!destroyed) {
               loaded.set(index, image);
               trimCache();
@@ -165,7 +170,9 @@
           };
           image.onerror = function () {
             activeLoads -= 1;
+            loading.delete(index);
             failed.add(index);
+            canvas.setAttribute('data-load-errors', String(failed.size));
             pumpQueue();
           };
           image.src = frameUrl(index);
@@ -175,7 +182,7 @@
 
     function enqueue(index, urgent) {
       index = clamp(Math.round(index), 0, frameCount - 1);
-      if (loaded.has(index) || failed.has(index) || queued.has(index)) return;
+      if (loaded.has(index) || failed.has(index) || queued.has(index) || loading.has(index)) return;
       queued.add(index);
       if (urgent) queue.unshift(index);
       else queue.push(index);
@@ -190,21 +197,29 @@
       enqueue(index, true);
     }
 
-    function warmIdleFrames(deadline) {
+    function pruneQueue(index) {
+      queue = queue.filter(function (candidate) {
+        var keep = navigationFrames.has(candidate) || Math.abs(candidate - index) <= NEIGHBOR_RADIUS + 2;
+        if (!keep) queued.delete(candidate);
+        return keep;
+      });
+    }
+
+    function warmNavigationFrames() {
+      idleRequest = 0;
       if (destroyed) return;
-      var allowance = 3;
-      while (idleCursor < frameCount && allowance > 0 && (!deadline || deadline.timeRemaining() > 2)) {
-        enqueue(idleCursor, false);
-        idleCursor += 1;
-        allowance -= 1;
+      for (var index = navigationStep; index < frameCount; index += navigationStep) {
+        navigationFrames.add(index);
+        enqueue(index, false);
       }
-      if (idleCursor < frameCount) idleRequest = requestIdle(warmIdleFrames);
     }
 
     function setProgress(progress) {
       var nextTarget = Math.round(clamp(Number(progress) || 0, 0, 1) * (frameCount - 1));
       var direction = nextTarget >= targetFrame ? 1 : -1;
+      if (nextTarget !== targetFrame) pruneQueue(nextTarget);
       targetFrame = nextTarget;
+      canvas.setAttribute('data-target-frame', String(targetFrame));
       enqueueNeighborhood(targetFrame, direction);
       scheduleDraw();
     }
@@ -215,6 +230,7 @@
       if (idleRequest) cancelIdle(idleRequest);
       queue.length = 0;
       queued.clear();
+      loading.clear();
       loaded.clear();
     }
 
@@ -222,25 +238,28 @@
       return {
         targetFrame: targetFrame,
         drawnFrame: drawnFrame,
-        activeLoads: activeLoads,
+        activeLoads: loading.size,
         cacheSize: loaded.size,
         failedCount: failed.size,
         queueSize: queue.length,
-        cacheLimit: cacheLimit
+        cacheLimit: cacheLimit,
+        navigationStep: navigationStep
       };
     }
 
     resize();
     enqueue(0, true);
-    for (var index = NAVIGATION_STEP; index < frameCount; index += NAVIGATION_STEP) enqueue(index, false);
-    idleRequest = requestIdle(warmIdleFrames);
+    canvas.setAttribute('data-target-frame', '0');
+    idleRequest = requestIdle(warmNavigationFrames);
 
-    return {
+    var api = {
       setProgress: setProgress,
       resize: resize,
       destroy: destroy,
       getState: getState
     };
+    canvas.__sogniScrollCanvas = api;
+    return api;
   }
 
   global.SogniScrollCanvas = { create: create };
