@@ -50,6 +50,9 @@
     var loading = new Set();
     var previewSheets = new Map();
     var previewFailed = new Set();
+    var exactLoadingImage = null;
+    var exactLoadingIndex = -1;
+    var exactLoadToken = 0;
     var queue = [];
     var activeLoads = 0;
     var targetFrame = 0;
@@ -293,6 +296,60 @@
       }
     }
 
+    function abortExactLoad() {
+      exactLoadToken += 1;
+      if (exactLoadingImage) {
+        exactLoadingImage.onload = null;
+        exactLoadingImage.onerror = null;
+        try {
+          exactLoadingImage.src = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
+        } catch (error) {
+          // The request token still prevents a late callback from being used.
+        }
+      }
+      exactLoadingImage = null;
+      exactLoadingIndex = -1;
+    }
+
+    function ensureExactTarget(index) {
+      index = clamp(Math.round(index), 0, frameCount - 1);
+      if (exactLoadingIndex >= 0 && exactLoadingIndex !== index) abortExactLoad();
+      if (loaded.has(index) || failed.has(index) || loading.has(index) || exactLoadingIndex === index) return;
+
+      if (queued.has(index)) {
+        queue = queue.filter(function (candidate) { return candidate !== index; });
+        queued.delete(index);
+        urgentQueued.delete(index);
+      }
+
+      abortExactLoad();
+      exactLoadingIndex = index;
+      var token = exactLoadToken;
+      var image = new Image();
+      exactLoadingImage = image;
+      if ('fetchPriority' in image) image.fetchPriority = 'high';
+      image.decoding = 'async';
+
+      image.onload = function () {
+        decodeImage(image, function () {
+          if (destroyed || token !== exactLoadToken || exactLoadingIndex !== index) return;
+          exactLoadingImage = null;
+          exactLoadingIndex = -1;
+          loaded.set(index, image);
+          trimCache();
+          scheduleDraw();
+        });
+      };
+      image.onerror = function () {
+        if (destroyed || token !== exactLoadToken || exactLoadingIndex !== index) return;
+        exactLoadingImage = null;
+        exactLoadingIndex = -1;
+        failed.add(index);
+        canvas.setAttribute('data-load-errors', String(failed.size));
+      };
+      image.src = frameUrl(index);
+    }
+
     function pumpQueue() {
       while (!destroyed && activeLoads < MAX_CONCURRENT && queue.length) {
         var nextIndex = queue.shift();
@@ -300,7 +357,7 @@
         (function loadNext(index, urgent) {
           queued.delete(index);
           urgentQueued.delete(index);
-          if (loaded.has(index) || failed.has(index)) return;
+          if (loaded.has(index) || failed.has(index) || exactLoadingIndex === index) return;
 
           activeLoads += 1;
           loading.add(index);
@@ -341,7 +398,7 @@
 
     function enqueue(index, urgent) {
       index = clamp(Math.round(index), 0, frameCount - 1);
-      if (loaded.has(index) || failed.has(index) || loading.has(index)) return;
+      if (loaded.has(index) || failed.has(index) || loading.has(index) || exactLoadingIndex === index) return;
       if (queued.has(index)) {
         if (urgent && !urgentQueued.has(index)) {
           urgentQueued.add(index);
@@ -389,6 +446,7 @@
         armSettleDraw();
       }
       canvas.setAttribute('data-target-frame', String(targetFrame));
+      ensureExactTarget(targetFrame);
       enqueueNeighborhood(targetFrame, direction);
       scheduleDraw();
     }
@@ -397,6 +455,7 @@
       destroyed = true;
       if (drawRequest) global.cancelAnimationFrame(drawRequest);
       if (settleTimer) global.clearTimeout(settleTimer);
+      abortExactLoad();
       queue.length = 0;
       queued.clear();
       urgentQueued.clear();
@@ -415,6 +474,7 @@
         failedCount: failed.size,
         queueSize: queue.length,
         cacheLimit: cacheLimit,
+        exactLoadingIndex: exactLoadingIndex,
         previewSheetCount: previewSheets.size,
         previewFailedCount: previewFailed.size
       };
@@ -422,7 +482,7 @@
 
     resize();
     loadPreviewSheets();
-    enqueue(0, true);
+    ensureExactTarget(0);
     canvas.setAttribute('data-target-frame', '0');
     armSettleDraw();
 

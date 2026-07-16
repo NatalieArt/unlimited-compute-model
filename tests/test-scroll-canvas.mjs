@@ -79,6 +79,8 @@ for (const contract of [
   'image.decode',
   'loadPreviewSheets',
   'drawPreviewBlend',
+  'ensureExactTarget',
+  'exactLoadingImage',
   'preview-blend',
   'full-fallback',
   'pruneQueue',
@@ -114,14 +116,14 @@ for (const contract of [
   'data-preview-rows="4"',
   'data-preview-tile-width="480"',
   'data-preview-tile-height="270"',
-  'data-frame-version="canvas7"',
+  'data-frame-version="canvas8"',
 ]) {
   assert.ok(html.includes(contract), `canvas must include ${contract}`);
 }
-assert.ok(html.includes('assets/gpu-scroll-canvas.js?v=canvas7'), 'HTML must load the current canvas runtime');
+assert.ok(html.includes('assets/gpu-scroll-canvas.js?v=canvas8'), 'HTML must load the current canvas runtime');
 for (const index of [0, 1, 2, 3]) {
   assert.ok(
-    html.includes(`rel="preload" href="assets/gpu-scroll-preview/sheet-${index}.webp?v=canvas7" as="image" type="image/webp" fetchpriority="high"`),
+    html.includes(`rel="preload" href="assets/gpu-scroll-preview/sheet-${index}.webp?v=canvas8" as="image" type="image/webp" fetchpriority="high"`),
     `HTML must preload preview sprite sheet ${index}`,
   );
 }
