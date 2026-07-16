@@ -1396,6 +1396,8 @@ body[data-bn-current^="newsletter"]::after {
     }
 
     var dur = 0, current = 0;
+    var pendingTime = 0, lastSeekAt = 0;
+    var seekInterval = 1000 / 24;
 
     function progress(){
       var r = wrap.getBoundingClientRect();
@@ -1415,6 +1417,12 @@ body[data-bn-current^="newsletter"]::after {
     }
     if (video.readyState >= 1) syncInitialFrame();
     else video.addEventListener('loadedmetadata', syncInitialFrame, {once:true});
+    function requestVideoTime(time, now){
+      pendingTime = time;
+      if (video.seeking || now - lastSeekAt < seekInterval) return;
+      lastSeekAt = now;
+      try { video.currentTime = pendingTime; } catch(e){}
+    }
     function onScreen(){
       var r = wrap.getBoundingClientRect();
       return r.bottom > 0 && r.top < window.innerHeight;
@@ -1430,7 +1438,7 @@ body[data-bn-current^="newsletter"]::after {
 
     var dim = wrap.querySelector('.scrolly-dim');
     var stickyStars = [].slice.call(wrap.querySelectorAll('.stars'));
-    function render(){
+    function render(now){
       if (onScreen()){
         var p = progress();
         /* keep the scroll hint up until the animation is nearly done */
@@ -1439,7 +1447,7 @@ body[data-bn-current^="newsletter"]::after {
           var target = p * (dur - 0.05);
           current += (target - current) * 0.22;
           if (Math.abs(target - current) > 1.5) current = target;
-          try { video.currentTime = current; } catch(e){}
+          requestVideoTime(current, now);
         }
         /* gentle settle for most of the ride, then an accelerating pull into the tunnel;
            a slight spin makes the pull readable even on the smooth vortex frames */
