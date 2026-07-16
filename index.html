@@ -81,9 +81,8 @@
   .scrolly{height:500vh;position:relative;margin-bottom:-100vh}
   @supports(height:100svh){.scrolly{margin-bottom:-100svh}}
   .scrolly ~ *{position:relative;z-index:1}
-  .scrolly-sticky{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden;background:#020302 url('assets/gpu-scroll-web-poster.jpg') center/cover no-repeat}
-  .scrolly-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform-origin:center;will-change:transform;opacity:0}
-  .scrolly-video.is-ready{opacity:1}
+  .scrolly-sticky{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden;background:#020302 url('assets/gpu-scroll-web-poster.jpg?v=20260716b') center/cover no-repeat}
+  .scrolly-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform-origin:center;will-change:transform}
   .scrolly-vignette{position:absolute;inset:0;pointer-events:none;
     background:radial-gradient(ellipse at center,transparent 42%,rgba(2,4,2,.55) 100%),
                linear-gradient(180deg,rgba(2,4,2,.4),transparent 22%,transparent 78%,rgba(2,4,2,.5))}
@@ -1181,7 +1180,7 @@ body[data-bn-current^="newsletter"]::after {
 <!-- SCROLL-DRIVEN 3D BANNER -->
 <section class="scrolly" id="scrolly">
   <div class="scrolly-sticky">
-    <video class="scrolly-video" src="assets/gpu-scroll-web.mp4" poster="assets/gpu-scroll-web-poster.jpg" muted playsinline preload="auto" aria-label="A consumer GPU drifting through a psychedelic compute vortex"></video>
+    <video class="scrolly-video" src="assets/gpu-scroll-web.mp4?v=20260716b" poster="assets/gpu-scroll-web-poster.jpg?v=20260716b" muted playsinline preload="auto" aria-label="A consumer GPU drifting through a psychedelic compute vortex"></video>
     <div class="scrolly-vignette"></div>
 
     <div class="scrolly-cap" data-from="0" data-to="0.20">
