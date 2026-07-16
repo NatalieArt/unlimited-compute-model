@@ -82,8 +82,8 @@ const runtime = fs.readFileSync(runtimePath, 'utf8');
 
 for (const contract of [
   'MAX_CONCURRENT = 6',
-  'DESKTOP_CACHE_LIMIT = 36',
-  'MOBILE_CACHE_LIMIT = 18',
+  'DESKTOP_CACHE_LIMIT = 16',
+  'MOBILE_CACHE_LIMIT = 10',
   'NEIGHBOR_RADIUS = 3',
   'SETTLE_DELAY = 120',
   'var loading = new Set()',
@@ -95,6 +95,10 @@ for (const contract of [
   'drawPreviewBlend',
   'ensureExactTarget',
   'exactLoadingImage',
+  'data-preview-root-mobile',
+  'data-preview-root-desktop',
+  'previewVariant',
+  'previewVariant: previewVariant',
   'preview-blend',
   'full-fallback',
   'pruneQueue',

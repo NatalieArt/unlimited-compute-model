@@ -2,8 +2,8 @@
   'use strict';
 
   var MAX_CONCURRENT = 6;
-  var DESKTOP_CACHE_LIMIT = 36;
-  var MOBILE_CACHE_LIMIT = 18;
+  var DESKTOP_CACHE_LIMIT = 16;
+  var MOBILE_CACHE_LIMIT = 10;
   var NEIGHBOR_RADIUS = 3;
   var SETTLE_DELAY = 120;
   var MAX_DPR = 2;
@@ -29,16 +29,20 @@
     var frameCount = Number(options.frameCount || canvas.getAttribute('data-frame-count') || 0);
     var framePad = Number(options.framePad || canvas.getAttribute('data-frame-pad') || 3);
     var version = options.version || canvas.getAttribute('data-frame-version') || '';
-    var previewRoot = options.previewRoot || canvas.getAttribute('data-preview-root') || '';
+    var isMobile = global.matchMedia && global.matchMedia('(max-width: 720px)').matches;
+    var previewVariant = isMobile ? 'mobile' : 'desktop';
+    var previewRootAttribute = isMobile ? 'data-preview-root-mobile' : 'data-preview-root-desktop';
+    var previewWidthAttribute = isMobile ? 'data-preview-width-mobile' : 'data-preview-width-desktop';
+    var previewHeightAttribute = isMobile ? 'data-preview-height-mobile' : 'data-preview-height-desktop';
+    var previewRoot = options.previewRoot || canvas.getAttribute(previewRootAttribute) || '';
     var previewCount = Number(options.previewCount || canvas.getAttribute('data-preview-count') || 0);
     var previewStep = Number(options.previewStep || canvas.getAttribute('data-preview-step') || 1);
     var previewColumns = Number(options.previewColumns || canvas.getAttribute('data-preview-columns') || 1);
     var previewRows = Number(options.previewRows || canvas.getAttribute('data-preview-rows') || 1);
-    var previewTileWidth = Number(options.previewTileWidth || canvas.getAttribute('data-preview-tile-width') || 0);
-    var previewTileHeight = Number(options.previewTileHeight || canvas.getAttribute('data-preview-tile-height') || 0);
+    var previewTileWidth = Number(options.previewTileWidth || canvas.getAttribute(previewWidthAttribute) || 0);
+    var previewTileHeight = Number(options.previewTileHeight || canvas.getAttribute(previewHeightAttribute) || 0);
     var previewTilesPerSheet = previewColumns * previewRows;
     var previewSheetCount = previewTilesPerSheet > 0 ? Math.ceil(previewCount / previewTilesPerSheet) : 0;
-    var isMobile = global.matchMedia && global.matchMedia('(max-width: 720px)').matches;
     var cacheLimit = isMobile ? MOBILE_CACHE_LIMIT : DESKTOP_CACHE_LIMIT;
 
     if (!frameRoot || frameCount < 1) return null;
@@ -475,6 +479,7 @@
         queueSize: queue.length,
         cacheLimit: cacheLimit,
         exactLoadingIndex: exactLoadingIndex,
+        previewVariant: previewVariant,
         previewSheetCount: previewSheets.size,
         previewFailedCount: previewFailed.size
       };
