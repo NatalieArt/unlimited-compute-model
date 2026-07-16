@@ -4,12 +4,9 @@
   var MAX_CONCURRENT = 6;
   var DESKTOP_CACHE_LIMIT = 72;
   var MOBILE_CACHE_LIMIT = 36;
-  var NEIGHBOR_RADIUS = 8;
+  var NEIGHBOR_RADIUS = 3;
   var DESKTOP_NAVIGATION_STEP = 18;
   var MOBILE_NAVIGATION_STEP = 24;
-  var SPARSE_BATCH_SIZE = 2;
-  var MAX_SPARSE_ACTIVE = 2;
-  var WARM_BATCH_DELAY = 180;
   var MAX_DPR = 2;
 
   var requestIdle = global.requestIdleCallback || function requestIdleCallback(callback) {
@@ -49,6 +46,7 @@
     var loaded = new Map();
     var failed = new Set();
     var queued = new Set();
+    var urgentQueued = new Set();
     var loading = new Set();
     var navigationFrames = new Set([0]);
     var queue = [];
@@ -57,8 +55,6 @@
     var drawnFrame = -1;
     var drawRequest = 0;
     var idleRequest = 0;
-    var warmTimer = 0;
-    var navigationIndex = navigationStep;
     var destroyed = false;
 
     function frameUrl(index) {
@@ -155,13 +151,17 @@
 
     function pumpQueue() {
       while (!destroyed && activeLoads < MAX_CONCURRENT && queue.length) {
-        (function loadNext(index) {
+        var nextIndex = queue.shift();
+        var nextUrgent = urgentQueued.has(nextIndex);
+        (function loadNext(index, urgent) {
           queued.delete(index);
+          urgentQueued.delete(index);
           if (loaded.has(index) || failed.has(index)) return;
 
           activeLoads += 1;
           loading.add(index);
           var image = new Image();
+          if ('fetchPriority' in image) image.fetchPriority = urgent ? 'high' : 'low';
           image.decoding = 'async';
           image.onload = function () {
             activeLoads -= 1;
@@ -181,15 +181,26 @@
             pumpQueue();
           };
           image.src = frameUrl(index);
-        })(queue.shift());
+        })(nextIndex, nextUrgent);
       }
     }
 
     function enqueue(index, urgent) {
       index = clamp(Math.round(index), 0, frameCount - 1);
-      if (loaded.has(index) || failed.has(index) || queued.has(index) || loading.has(index)) return;
+      if (loaded.has(index) || failed.has(index) || loading.has(index)) return;
+      if (queued.has(index)) {
+        if (urgent && !urgentQueued.has(index)) {
+          urgentQueued.add(index);
+          queue = queue.filter(function (candidate) { return candidate !== index; });
+          queue.unshift(index);
+        }
+        return;
+      }
       queued.add(index);
-      if (urgent) queue.unshift(index);
+      if (urgent) {
+        urgentQueued.add(index);
+        queue.unshift(index);
+      }
       else queue.push(index);
       pumpQueue();
     }
@@ -205,30 +216,21 @@
     function pruneQueue(index) {
       queue = queue.filter(function (candidate) {
         var keep = navigationFrames.has(candidate) || Math.abs(candidate - index) <= NEIGHBOR_RADIUS + 2;
-        if (!keep) queued.delete(candidate);
+        if (!keep) {
+          queued.delete(candidate);
+          urgentQueued.delete(candidate);
+        }
         return keep;
       });
-    }
-
-    function scheduleWarmNavigation(delay) {
-      if (destroyed || navigationIndex >= frameCount || warmTimer || idleRequest) return;
-      warmTimer = global.setTimeout(function () {
-        warmTimer = 0;
-        idleRequest = requestIdle(warmNavigationFrames);
-      }, delay);
     }
 
     function warmNavigationFrames() {
       idleRequest = 0;
       if (destroyed) return;
-      var allowance = Math.min(SPARSE_BATCH_SIZE, Math.max(0, MAX_SPARSE_ACTIVE - activeLoads));
-      while (navigationIndex < frameCount && allowance > 0) {
-        navigationFrames.add(navigationIndex);
-        enqueue(navigationIndex, false);
-        navigationIndex += navigationStep;
-        allowance -= 1;
+      for (var index = navigationStep; index < frameCount; index += navigationStep) {
+        navigationFrames.add(index);
+        enqueue(index, false);
       }
-      scheduleWarmNavigation(WARM_BATCH_DELAY);
     }
 
     function setProgress(progress) {
@@ -245,9 +247,9 @@
       destroyed = true;
       if (drawRequest) global.cancelAnimationFrame(drawRequest);
       if (idleRequest) cancelIdle(idleRequest);
-      if (warmTimer) global.clearTimeout(warmTimer);
       queue.length = 0;
       queued.clear();
+      urgentQueued.clear();
       loading.clear();
       loaded.clear();
     }
@@ -268,7 +270,7 @@
     resize();
     enqueue(0, true);
     canvas.setAttribute('data-target-frame', '0');
-    scheduleWarmNavigation(260);
+    idleRequest = requestIdle(warmNavigationFrames);
 
     var api = {
       setProgress: setProgress,
