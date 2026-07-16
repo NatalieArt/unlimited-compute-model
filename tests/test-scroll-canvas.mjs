@@ -189,11 +189,22 @@ for (const contract of [
   'data-preview-step="3"',
   'data-preview-columns="4"',
   'data-preview-rows="1"',
-  'data-frame-version="canvas18"',
+  'data-preview-root-desktop-hd="assets/gpu-scroll-preview-desktop-hd/sheet-"',
+  'data-preview-width-desktop-hd="1440"',
+  'data-preview-height-desktop-hd="810"',
+  'data-preview-count-desktop-hd="181"',
+  'data-preview-step-desktop-hd="2"',
+  'data-preview-columns-desktop-hd="3"',
+  'data-preview-rows-desktop-hd="1"',
+  'data-frame-version="canvas19"',
 ]) {
   assert.ok(html.includes(contract), `canvas must include ${contract}`);
 }
-assert.ok(html.includes('assets/gpu-scroll-canvas.js?v=canvas18'), 'HTML must load the current canvas runtime');
+assert.ok(html.includes('assets/gpu-scroll-canvas.js?v=canvas19'), 'HTML must load the current canvas runtime');
+assert.ok(
+  !html.includes('rel="preload" href="assets/gpu-scroll-preview-desktop-hd'),
+  'HTML must not statically preload HD sheets',
+);
 assert.ok(
   !html.includes('<link rel="preload" href="assets/gpu-scroll-preview-'),
   'HTML must not statically preload both device tracks',
@@ -211,7 +222,7 @@ for (const contract of [
   "link.as = 'image';",
   "link.type = 'image/webp';",
   'link.fetchPriority = priority;',
-  "link.href = 'assets/gpu-scroll-preview-' + previewVariant + '/sheet-' + index + '.webp?v=canvas18';",
+  "link.href = 'assets/gpu-scroll-preview-' + previewVariant + '/sheet-' + index + '.webp?v=canvas19';",
   'document.head.appendChild(link);',
 ]) {
   assert.ok(html.includes(contract), `HTML must include selected-track preload contract: ${contract}`);
