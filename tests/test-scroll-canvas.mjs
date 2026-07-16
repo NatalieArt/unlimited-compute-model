@@ -23,3 +23,23 @@ for (const name of ['frame-000.webp', 'frame-180.webp', 'frame-360.webp']) {
 }
 
 console.log('PASS: 361 WebP frames are present at 1600x900');
+
+const runtimePath = path.join(root, 'assets', 'gpu-scroll-canvas.js');
+assert.ok(fs.existsSync(runtimePath), 'canvas runtime must exist');
+const runtime = fs.readFileSync(runtimePath, 'utf8');
+
+for (const contract of [
+  'MAX_CONCURRENT = 6',
+  'DESKTOP_CACHE_LIMIT = 72',
+  'MOBILE_CACHE_LIMIT = 36',
+  'requestAnimationFrame',
+  'drawImage',
+  'requestIdleCallback',
+  'SogniScrollCanvas',
+]) {
+  assert.ok(runtime.includes(contract), `runtime must include ${contract}`);
+}
+assert.ok(!runtime.includes('currentTime'), 'canvas runtime must not seek video');
+
+new Function(runtime);
+console.log('PASS: canvas runtime contract and syntax are valid');
