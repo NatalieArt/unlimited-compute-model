@@ -119,6 +119,12 @@ for (const contract of [
   assert.ok(html.includes(contract), `canvas must include ${contract}`);
 }
 assert.ok(html.includes('assets/gpu-scroll-canvas.js?v=canvas7'), 'HTML must load the current canvas runtime');
+for (const index of [0, 1, 2, 3]) {
+  assert.ok(
+    html.includes(`rel="preload" href="assets/gpu-scroll-preview/sheet-${index}.webp?v=canvas7" as="image" type="image/webp" fetchpriority="high"`),
+    `HTML must preload preview sprite sheet ${index}`,
+  );
+}
 assert.ok(!html.includes('<video class="scrolly-video"'), 'banner video must be removed');
 assert.ok(!html.includes('currentTime'), 'HTML must not seek video');
 
