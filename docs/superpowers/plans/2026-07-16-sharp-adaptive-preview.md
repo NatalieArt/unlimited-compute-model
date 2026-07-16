@@ -4,16 +4,16 @@
 
 **Goal:** Make the first cold-cache scroll pass both sharp and continuous on desktop and mobile without a visible delayed-sharpening transition.
 
-**Architecture:** Generate separate 61-frame WebP sprite tracks for landscape desktop and portrait mobile display. The HTML preloads only the matching track, the runtime selects its metadata at the existing 720 px breakpoint, and the exact 1600×900 loader remains the final settled layer.
+**Architecture:** Generate separate 121-frame WebP sprite tracks for landscape desktop and portrait mobile display. The HTML preloads only the matching track, the runtime selects its metadata at the existing 720 px breakpoint, and the exact 1600×900 loader remains the final settled layer. The renderer draws the nearest preview frame at full opacity so moving objects never acquire crossfade ghosting.
 
 **Tech Stack:** Static HTML, Canvas 2D, browser `Image`/`image.decode()`, Python Pillow, Node.js contract tests, GitHub Pages.
 
 ## Global Constraints
 
-- Desktop preview tiles are 960×540 in four 3840×2160 WebP sheets.
-- Mobile preview tiles are center-cropped 450×800 in four 1800×3200 WebP sheets.
-- Both tracks contain source frames 0 through 360 in steps of 6 and use WebP quality 72.
-- Desktop preview transfer is at most 7 MiB; mobile preview transfer is at most 5 MiB.
+- Desktop preview tiles are 960×540 in eight 3840×2160 WebP sheets.
+- Mobile preview tiles are center-cropped 450×800 in eight 1800×3200 WebP sheets.
+- Both tracks contain source frames 0 through 360 in steps of 3 and use WebP quality 70.
+- Desktop preview transfer is at most 8 MiB; mobile preview transfer is at most 5.5 MiB.
 - Only the media-matched preview track is preloaded and selected.
 - Exact-frame caches are 16 on desktop and 10 on mobile.
 - Captions, timing, vignette, dim, stars, reduced motion, layout, and link-preview metadata remain unchanged.
@@ -25,13 +25,13 @@
 
 **Files:**
 - Modify: `scripts/build-scroll-preview.py`
-- Create: `assets/gpu-scroll-preview-desktop/sheet-0.webp` through `sheet-3.webp`
-- Create: `assets/gpu-scroll-preview-mobile/sheet-0.webp` through `sheet-3.webp`
+- Create: `assets/gpu-scroll-preview-desktop/sheet-0.webp` through `sheet-7.webp`
+- Create: `assets/gpu-scroll-preview-mobile/sheet-0.webp` through `sheet-7.webp`
 - Test: `tests/test-scroll-canvas.mjs`
 
 **Interfaces:**
-- Consumes: `assets/gpu-scroll-frames/frame-NNN.webp` for indices `range(0, 361, 6)`.
-- Produces: two four-sheet tracks with row-major 4×4 tile placement.
+- Consumes: `assets/gpu-scroll-frames/frame-NNN.webp` for indices `range(0, 361, 3)`.
+- Produces: two eight-sheet tracks with row-major 4×4 tile placement.
 
 - [ ] **Step 1: Write the failing adaptive asset test**
 
@@ -39,14 +39,14 @@ Replace the single preview-directory assertion with a table-driven test:
 
 ```js
 for (const track of [
-  { directory: 'gpu-scroll-preview-desktop', dimensions: '3840,2160', budget: 7 * 1024 * 1024 },
-  { directory: 'gpu-scroll-preview-mobile', dimensions: '1800,3200', budget: 5 * 1024 * 1024 },
+  { directory: 'gpu-scroll-preview-desktop', dimensions: '3840,2160', budget: 8 * 1024 * 1024 },
+  { directory: 'gpu-scroll-preview-mobile', dimensions: '1800,3200', budget: 5.5 * 1024 * 1024 },
 ]) {
   const directory = path.join(root, 'assets', track.directory);
   const sheets = fs.existsSync(directory)
-    ? fs.readdirSync(directory).filter((name) => /^sheet-[0-3]\.webp$/.test(name)).sort()
+    ? fs.readdirSync(directory).filter((name) => /^sheet-[0-7]\.webp$/.test(name)).sort()
     : [];
-  assert.deepEqual(sheets, ['sheet-0.webp', 'sheet-1.webp', 'sheet-2.webp', 'sheet-3.webp']);
+  assert.deepEqual(sheets, Array.from({ length: 8 }, (_, index) => `sheet-${index}.webp`));
   let bytes = 0;
   for (const name of sheets) {
     const filePath = path.join(directory, name);
@@ -66,7 +66,7 @@ for (const track of [
 
 Run: `node tests/test-scroll-canvas.mjs`
 
-Expected: FAIL because `gpu-scroll-preview-desktop` and `gpu-scroll-preview-mobile` do not exist.
+Expected: FAIL because each adaptive preview directory contains only four of the required eight sheets.
 
 - [ ] **Step 3: Implement the two-track generator**
 
@@ -77,10 +77,11 @@ TRACKS = {
     "desktop": {"tile": (960, 540), "sheet": (3840, 2160), "crop": False},
     "mobile": {"tile": (450, 800), "sheet": (1800, 3200), "crop": True},
 }
-QUALITY = 72
+FRAME_STEP = 3
+QUALITY = 70
 ```
 
-For the mobile track, center-crop each 1600×900 source to the 450:800 aspect ratio before LANCZOS resizing. Save four sheets per track with `quality=72`, `method=6`, and `exact=True`.
+For the mobile track, center-crop each 1600×900 source to the 450:800 aspect ratio before LANCZOS resizing. Save eight sheets per track with `quality=70`, `method=6`, and `exact=True`.
 
 - [ ] **Step 4: Generate assets and verify GREEN**
 
@@ -91,7 +92,7 @@ Run:
 node tests/test-scroll-canvas.mjs
 ```
 
-Expected: both tracks pass count, dimensions, truncation, and byte-budget checks.
+Expected: both eight-sheet tracks pass count, dimensions, truncation, and byte-budget checks.
 
 - [ ] **Step 5: Commit the adaptive assets**
 
@@ -120,9 +121,12 @@ Require the runtime to contain:
 'data-preview-root-mobile'
 'data-preview-root-desktop'
 'previewVariant'
+'drawSharpPreview'
+'preview-sharp'
+'Math.round(frame / previewStep)'
 ```
 
-Also require `getState()` to expose `previewVariant`.
+Also require `getState()` to expose `previewVariant` and require the old `var mix =` crossfade identifier to be absent.
 
 - [ ] **Step 2: Run the test to verify RED**
 
@@ -141,7 +145,7 @@ var previewTileWidth = Number(canvas.getAttribute('data-preview-width-' + previe
 var previewTileHeight = Number(canvas.getAttribute('data-preview-height-' + previewVariant) || 0);
 ```
 
-Keep `data-preview-count="61"`, `data-preview-step="6"`, `data-preview-columns="4"`, and `data-preview-rows="4"` shared. Set cache limits to 16/10 and return `previewVariant` from `getState()`.
+Keep `data-preview-count="121"`, `data-preview-step="3"`, `data-preview-columns="4"`, and `data-preview-rows="4"` shared. Set cache limits to 16/10 and return `previewVariant` from `getState()`. Replace `drawPreviewBlend(frame)` with `drawSharpPreview(frame)`, select `Math.round(frame / previewStep)`, draw one tile at alpha 1, and set `data-render-mode="preview-sharp"`.
 
 - [ ] **Step 4: Run tests and commit**
 
@@ -165,7 +169,7 @@ Expected: all runtime syntax and contract tests pass.
 
 - [ ] **Step 1: Write the failing HTML contract test**
 
-Require all four desktop preload links to use `media="(min-width: 721px)"`, all four mobile links to use `media="(max-width: 720px)"`, and require:
+Require all eight desktop preload links to use `media="(min-width: 721px)"`, all eight mobile links to use `media="(max-width: 720px)"`, and require:
 
 ```html
 data-preview-root-desktop="assets/gpu-scroll-preview-desktop/sheet-"
@@ -185,7 +189,7 @@ Expected: FAIL because the HTML still declares canvas8 and one generic preview r
 
 - [ ] **Step 3: Add responsive preload and metadata markup**
 
-Replace the four generic preload links with eight media-qualified links. Replace generic preview root/width/height attributes with the six adaptive attributes, keep the shared preview attributes unchanged, and bump runtime plus frame version to canvas9.
+Add all eight media-qualified preload links per variant. Set shared metadata to `data-preview-count="121"` and `data-preview-step="3"`, keep the six adaptive attributes, and retain runtime plus frame version canvas9.
 
 - [ ] **Step 4: Run tests and commit**
 
@@ -209,15 +213,15 @@ Expected: HTML, inline script syntax, runtime, exact-frame, and both asset-track
 
 - [ ] **Step 1: Run local automated verification**
 
-Run `node tests/test-scroll-canvas.mjs`, `git diff --check HEAD`, verify 361 exact frames, and verify eight non-truncated adaptive preview sheets.
+Run `node tests/test-scroll-canvas.mjs`, `git diff --check HEAD`, verify 361 exact frames, and verify sixteen non-truncated adaptive preview sheets.
 
 - [ ] **Step 2: Run cold local rendered QA**
 
-Serve on `127.0.0.1`, test 1440×900 and 390×844 using a fresh canvas9 asset version, and rapidly scroll. Require `preview-blend` during motion, matching target/drawn frame after a render tick, exact `full` within one second, no load errors, and no horizontal overflow. Compare moving and settled screenshots for an obvious sharpness jump.
+Serve on `127.0.0.1`, test 1440×900 and 390×844 using a fresh canvas9 asset version, and rapidly scroll. Require `preview-sharp` during motion, the drawn preview within two target frames, exact `full` within one second, no load errors, and no horizontal overflow. Compare moving and settled screenshots for ghosting or an obvious sharpness jump.
 
 - [ ] **Step 3: Sync and verify the blog folder**
 
-Copy HTML, runtime, desktop preview sheets, and mobile preview sheets. Verify every file with `cmp -s`, plus 361 exact frames and eight adaptive sheets larger than 1024 bytes.
+Copy HTML, runtime, desktop preview sheets, and mobile preview sheets. Verify every file with `cmp -s`, plus 361 exact frames and sixteen adaptive sheets larger than 1024 bytes.
 
 - [ ] **Step 4: Push and wait for ordinary Pages URL**
 
