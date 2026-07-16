@@ -207,42 +207,25 @@
       };
     }
 
-    function drawPreviewBlend(frame) {
+    function drawSharpPreview(frame) {
       if (!previewCount || !previewRoot || !previewTileWidth || !previewTileHeight) return false;
-      if (renderMode === 'preview-blend' && drawnFrame === frame) return true;
+      var previewIndex = clamp(Math.round(frame / previewStep), 0, previewCount - 1);
+      var previewFrame = Math.min(frameCount - 1, previewIndex * previewStep);
+      if (renderMode === 'preview-sharp' && drawnFrame === previewFrame) return true;
 
-      var position = frame / previewStep;
-      var lower = Math.floor(position);
-      var upper = Math.min(previewCount - 1, Math.ceil(position));
-      var mix = position - lower;
-      var lowerTile = previewTile(lower);
-      var upperTile = previewTile(upper);
-      if (!lowerTile && !upperTile) return false;
-
-      var firstTile = lowerTile || upperTile;
+      var tile = previewTile(previewIndex);
+      if (!tile) return false;
       if (!drawRegion(
-        firstTile.image,
-        firstTile.x,
-        firstTile.y,
+        tile.image,
+        tile.x,
+        tile.y,
         previewTileWidth,
         previewTileHeight,
         1,
         true
       )) return false;
 
-      if (lowerTile && upperTile && upper !== lower && mix > 0) {
-        drawRegion(
-          upperTile.image,
-          upperTile.x,
-          upperTile.y,
-          previewTileWidth,
-          previewTileHeight,
-          mix,
-          false
-        );
-      }
-
-      setRenderedState(frame, 'preview-blend');
+      setRenderedState(previewFrame, 'preview-sharp');
       return true;
     }
 
@@ -250,9 +233,9 @@
       drawRequest = 0;
       var isMoving = Date.now() - lastTargetChange < SETTLE_DELAY;
 
-      if (isMoving && drawPreviewBlend(targetFrame)) return;
+      if (isMoving && drawSharpPreview(targetFrame)) return;
       if (loaded.has(targetFrame) && drawFullFrame(targetFrame, 'full')) return;
-      if (drawPreviewBlend(targetFrame)) return;
+      if (drawSharpPreview(targetFrame)) return;
 
       var fallback = nearestLoaded(targetFrame);
       if (fallback >= 0) drawFullFrame(fallback, 'full-fallback');

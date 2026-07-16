@@ -6,9 +6,9 @@ from pathlib import Path
 from PIL import Image
 
 
-FRAME_STEP = 6
+FRAME_STEP = 3
 GRID = (4, 4)
-QUALITY = 72
+QUALITY = 70
 TRACKS = {
     "desktop": {
         "tile": (960, 540),
