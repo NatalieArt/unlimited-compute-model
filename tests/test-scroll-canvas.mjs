@@ -106,8 +106,19 @@ console.log('PASS: canvas runtime contract and syntax are valid');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 assert.ok(html.includes('<canvas class="scrolly-canvas"'), 'banner must use canvas');
 assert.ok(html.includes('data-frame-count="361"'), 'canvas must declare 361 frames');
-assert.ok(html.includes('data-frame-version="canvas6"'), 'canvas frames must use the current cache version');
-assert.ok(html.includes('assets/gpu-scroll-canvas.js?v=canvas6'), 'HTML must load the current canvas runtime');
+for (const contract of [
+  'data-preview-root="assets/gpu-scroll-preview/sheet-"',
+  'data-preview-count="61"',
+  'data-preview-step="6"',
+  'data-preview-columns="4"',
+  'data-preview-rows="4"',
+  'data-preview-tile-width="480"',
+  'data-preview-tile-height="270"',
+  'data-frame-version="canvas7"',
+]) {
+  assert.ok(html.includes(contract), `canvas must include ${contract}`);
+}
+assert.ok(html.includes('assets/gpu-scroll-canvas.js?v=canvas7'), 'HTML must load the current canvas runtime');
 assert.ok(!html.includes('<video class="scrolly-video"'), 'banner video must be removed');
 assert.ok(!html.includes('currentTime'), 'HTML must not seek video');
 
