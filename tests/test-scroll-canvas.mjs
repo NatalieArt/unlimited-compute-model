@@ -37,8 +37,11 @@ for (const contract of [
   'MAX_CONCURRENT = 6',
   'DESKTOP_CACHE_LIMIT = 72',
   'MOBILE_CACHE_LIMIT = 36',
-  'DESKTOP_NAVIGATION_STEP = 30',
-  'MOBILE_NAVIGATION_STEP = 45',
+  'DESKTOP_NAVIGATION_STEP = 18',
+  'MOBILE_NAVIGATION_STEP = 24',
+  'SPARSE_BATCH_SIZE = 2',
+  'MAX_SPARSE_ACTIVE = 2',
+  'WARM_BATCH_DELAY = 180',
   'var loading = new Set()',
   'loading.has(index)',
   'pruneQueue',
@@ -53,6 +56,10 @@ for (const contract of [
 }
 assert.ok(!runtime.includes('currentTime'), 'canvas runtime must not seek video');
 assert.ok(!runtime.includes('idleCursor'), 'runtime must not background-load the entire sequence');
+assert.ok(
+  runtime.indexOf('enqueue(index - distance * direction, true)') < runtime.indexOf('enqueue(index + distance * direction, true)'),
+  'reverse neighbor must be queued before forward neighbor so unshift prioritizes the scroll direction',
+);
 
 new Function(runtime);
 console.log('PASS: canvas runtime contract and syntax are valid');
@@ -60,8 +67,8 @@ console.log('PASS: canvas runtime contract and syntax are valid');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 assert.ok(html.includes('<canvas class="scrolly-canvas"'), 'banner must use canvas');
 assert.ok(html.includes('data-frame-count="361"'), 'canvas must declare 361 frames');
-assert.ok(html.includes('data-frame-version="canvas4"'), 'canvas frames must use the current cache version');
-assert.ok(html.includes('assets/gpu-scroll-canvas.js?v=canvas4'), 'HTML must load the current canvas runtime');
+assert.ok(html.includes('data-frame-version="canvas5"'), 'canvas frames must use the current cache version');
+assert.ok(html.includes('assets/gpu-scroll-canvas.js?v=canvas5'), 'HTML must load the current canvas runtime');
 assert.ok(!html.includes('<video class="scrolly-video"'), 'banner video must be removed');
 assert.ok(!html.includes('currentTime'), 'HTML must not seek video');
 

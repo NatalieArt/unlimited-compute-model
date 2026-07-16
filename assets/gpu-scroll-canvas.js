@@ -5,8 +5,11 @@
   var DESKTOP_CACHE_LIMIT = 72;
   var MOBILE_CACHE_LIMIT = 36;
   var NEIGHBOR_RADIUS = 8;
-  var DESKTOP_NAVIGATION_STEP = 30;
-  var MOBILE_NAVIGATION_STEP = 45;
+  var DESKTOP_NAVIGATION_STEP = 18;
+  var MOBILE_NAVIGATION_STEP = 24;
+  var SPARSE_BATCH_SIZE = 2;
+  var MAX_SPARSE_ACTIVE = 2;
+  var WARM_BATCH_DELAY = 180;
   var MAX_DPR = 2;
 
   var requestIdle = global.requestIdleCallback || function requestIdleCallback(callback) {
@@ -54,6 +57,8 @@
     var drawnFrame = -1;
     var drawRequest = 0;
     var idleRequest = 0;
+    var warmTimer = 0;
+    var navigationIndex = navigationStep;
     var destroyed = false;
 
     function frameUrl(index) {
@@ -191,8 +196,8 @@
 
     function enqueueNeighborhood(index, direction) {
       for (var distance = NEIGHBOR_RADIUS; distance >= 1; distance -= 1) {
-        enqueue(index + distance * direction, true);
         enqueue(index - distance * direction, true);
+        enqueue(index + distance * direction, true);
       }
       enqueue(index, true);
     }
@@ -205,13 +210,25 @@
       });
     }
 
+    function scheduleWarmNavigation(delay) {
+      if (destroyed || navigationIndex >= frameCount || warmTimer || idleRequest) return;
+      warmTimer = global.setTimeout(function () {
+        warmTimer = 0;
+        idleRequest = requestIdle(warmNavigationFrames);
+      }, delay);
+    }
+
     function warmNavigationFrames() {
       idleRequest = 0;
       if (destroyed) return;
-      for (var index = navigationStep; index < frameCount; index += navigationStep) {
-        navigationFrames.add(index);
-        enqueue(index, false);
+      var allowance = Math.min(SPARSE_BATCH_SIZE, Math.max(0, MAX_SPARSE_ACTIVE - activeLoads));
+      while (navigationIndex < frameCount && allowance > 0) {
+        navigationFrames.add(navigationIndex);
+        enqueue(navigationIndex, false);
+        navigationIndex += navigationStep;
+        allowance -= 1;
       }
+      scheduleWarmNavigation(WARM_BATCH_DELAY);
     }
 
     function setProgress(progress) {
@@ -228,6 +245,7 @@
       destroyed = true;
       if (drawRequest) global.cancelAnimationFrame(drawRequest);
       if (idleRequest) cancelIdle(idleRequest);
+      if (warmTimer) global.clearTimeout(warmTimer);
       queue.length = 0;
       queued.clear();
       loading.clear();
@@ -250,7 +268,7 @@
     resize();
     enqueue(0, true);
     canvas.setAttribute('data-target-frame', '0');
-    idleRequest = requestIdle(warmNavigationFrames);
+    scheduleWarmNavigation(260);
 
     var api = {
       setProgress: setProgress,
