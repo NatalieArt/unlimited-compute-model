@@ -1,0 +1,1484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <link rel="icon" type="image/png" sizes="32x32" href="https://blog.sogni.ai/assets/sogni-favicon-32.png?v=sogni1">
+  <link rel="shortcut icon" type="image/png" href="https://blog.sogni.ai/assets/sogni-favicon-32.png?v=sogni1">
+  <link rel="apple-touch-icon" sizes="256x256" href="https://blog.sogni.ai/assets/sogni-apple-touch.png?v=sogni1">
+<title>Why Unlimited AI Needs a Different Compute Model | Sogni</title>
+<meta name="description" content="Every few months an AI company launches an unlimited plan, then walks it back. Sogni Unlimited is built on an inverted cost structure: a decentralized network of consumer GPUs paid 51% of net revenue.">
+<meta name="robots" content="noindex">
+<link rel="canonical" href="https://natalieart.github.io/unlimited-compute-model/">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Sogni">
+<meta property="og:url" content="https://natalieart.github.io/unlimited-compute-model/">
+<meta property="og:title" content="Why Unlimited AI Needs a Different Compute Model | Sogni">
+<meta property="og:description" content="Unlimited AI plans keep dying because of the cost structure underneath them. Ours is inverted: 51% of net revenue pays the consumer-GPU network that renders the work.">
+<meta property="og:image" content="https://natalieart.github.io/unlimited-compute-model/assets/og-unlimited-compute-model.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A wall of consumer GPUs glowing Sogni mint — the compute behind Sogni Unlimited.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Why Unlimited AI Needs a Different Compute Model | Sogni">
+<meta name="twitter:description" content="Unlimited AI plans keep dying because of the cost structure underneath them. Ours is inverted: 51% of net revenue pays the consumer-GPU network that renders it.">
+<meta name="twitter:image" content="https://natalieart.github.io/unlimited-compute-model/assets/og-unlimited-compute-model.png">
+<meta property="article:author" content="Mauvis Ledford">
+<meta property="article:published_time" content="2026-07-15">
+<style>
+  :root{
+    --bg:#050704;
+    --panel:#0d100c;
+    --panel-2:#121611;
+    --line:#222a20;
+    --ink:#eef2ea;
+    --muted:#9aa395;
+    --soft:#c5ccbe;
+    --accent:#00ff9d;
+    --accent-2:#00ff9d;
+    --on-accent:#04221b;
+    --magenta:#d24bf5;
+    --radius:18px;
+    --colw:900px;     /* narrow article column (intro / body / cta) */
+    --maxw:1440px;    /* full-width band (banner) */
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  section[id]{scroll-margin-top:92px}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Helvetica,Arial,sans-serif;
+    line-height:1.65;-webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  a{color:var(--accent-2);text-decoration:none}
+  a:hover{text-decoration:underline}
+  img,video{max-width:100%;display:block}
+
+  .band{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+
+  /* ---------- top nav (reference style) ---------- */
+  .topbar{border-bottom:1px solid var(--line);background:rgba(5,7,4,.9);backdrop-filter:blur(8px);position:sticky;top:0;z-index:50}
+  .topbar .band{display:flex;align-items:center;justify-content:space-between;height:64px;gap:14px}
+  .brand{display:flex;align-items:center;gap:13px}
+  .brand .logo{display:flex;align-items:center}
+  .brand .logo img{height:26px;width:auto;display:block}
+  .brand .logo:hover{text-decoration:none;filter:brightness(1.12)}
+  .brand .slash{color:var(--muted);font-size:18px;font-weight:300}
+  .brand .sub{font-size:12px;letter-spacing:.24em;text-transform:uppercase;color:var(--soft)}
+  .topbar nav{display:flex;align-items:center;gap:22px}
+  .topbar nav a.navlink{color:var(--ink);font-size:14px;font-weight:600}
+  .topbar nav a.navlink:hover{color:var(--accent);text-decoration:none}
+  .topbar nav a.back{color:var(--ink);font-size:14px;font-weight:600;border:1px solid var(--line);padding:9px 18px;border-radius:11px}
+  .topbar nav a.back:hover{border-color:var(--accent);text-decoration:none}
+  .topbar nav a.sub{color:var(--on-accent);background:var(--accent);font-size:14px;font-weight:700;padding:10px 20px;border-radius:11px}
+  .topbar nav a.sub:hover{text-decoration:none;filter:brightness(1.05)}
+  @media(max-width:720px){.brand .sub{display:none}.topbar nav a.navlink{display:none}.topbar nav a.back{display:none}}
+
+  /* ---------- scroll-driven 3D banner ---------- */
+  /* negative bottom margin: the article slides in over the final frame — the tunnel stays visible, no black gap */
+  .scrolly{height:500vh;position:relative;margin-bottom:-100vh}
+  @supports(height:100svh){.scrolly{margin-bottom:-100svh}}
+  .scrolly ~ *{position:relative;z-index:1}
+  .scrolly-sticky{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden;background:#020302}
+  .scrolly-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform-origin:center;will-change:transform}
+  .scrolly-vignette{position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(ellipse at center,transparent 42%,rgba(2,4,2,.55) 100%),
+               linear-gradient(180deg,rgba(2,4,2,.4),transparent 22%,transparent 78%,rgba(2,4,2,.5))}
+  .scrolly-cap{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(880px,90vw);
+    text-align:center;opacity:0;will-change:opacity,transform;pointer-events:none}
+  .scrolly-cap h2{font-size:clamp(28px,4.8vw,56px);line-height:1.1;margin:0;color:var(--ink);
+    letter-spacing:-.02em;
+    text-shadow:0 0 3px rgba(2,4,2,.95),0 0 9px rgba(2,4,2,.92),0 0 22px rgba(2,4,2,.85),
+      0 0 44px rgba(2,4,2,.7),0 5px 60px rgba(2,4,2,.6)}
+  .scrolly-cap h2 b{color:var(--accent);
+    text-shadow:0 0 2px rgba(2,4,2,1),0 0 6px rgba(2,4,2,.95),0 0 14px rgba(2,4,2,.9),
+      0 0 30px rgba(2,4,2,.8),0 0 26px rgba(0,255,157,.35),0 4px 46px rgba(2,4,2,.7)}
+  .scrolly-dim{position:absolute;inset:0;background:var(--bg);opacity:0;pointer-events:none}
+  /* star dust inside the sticky — fades in with the dim so the hand-off frame matches the page */
+  .scrolly-sticky .stars{position:absolute;opacity:0}
+  .scrolly-hint{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);display:flex;flex-direction:column;
+    align-items:center;gap:6px;color:var(--soft);font-size:11px;letter-spacing:.24em;text-transform:uppercase;
+    opacity:.85;transition:opacity .5s;pointer-events:none}
+  .scrolly-hint svg{width:18px;height:18px;animation:hintbob 1.6s ease-in-out infinite}
+  @keyframes hintbob{0%,100%{transform:translateY(0)}50%{transform:translateY(7px)}}
+  .scrolly.started .scrolly-hint{opacity:0}
+
+  /* ---------- model pills ---------- */
+  .pills{display:flex;flex-wrap:wrap;gap:14px;margin:22px auto 0;max-width:var(--maxw);padding:0 22px}
+  .pill{flex:1 1 240px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px;text-align:center}
+  .pill b{display:block;color:var(--accent);font-size:11.5px;letter-spacing:.03em;text-transform:uppercase;margin-bottom:2px}
+  .pill span{color:var(--soft);font-size:12.5px;line-height:1.4}
+
+  /* ---------- typography ---------- */
+  .eyebrow{display:block;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;font-weight:700}
+  h1.title{font-size:clamp(30px,5vw,50px);line-height:1.1;margin:.1em 0 .4em;letter-spacing:-.02em}
+  h2{font-size:clamp(24px,3.4vw,34px);line-height:1.15;margin:.1em 0 .45em;letter-spacing:-.01em}
+  h3{font-size:clamp(20px,2.4vw,26px);line-height:1.22;margin:.1em 0 .5em;letter-spacing:-.01em}
+  p{color:var(--soft);margin:0 0 1em}
+  .lead{font-size:16px;color:var(--ink)}
+  strong{color:var(--ink)}
+
+  section{padding:20px 0}
+  section.first{padding-top:40px}
+  .prose h2:first-child{margin-top:.15em}
+
+  /* side accents — a sparse dusting of stars in the banner palette, behind the content */
+  .stars{position:fixed;top:0;bottom:0;width:clamp(140px,16vw,300px);z-index:-1;pointer-events:none}
+  .stars::before,.stars::after{content:"";position:absolute;inset:0}
+  .stars-left{left:0}
+  .stars-right{right:0}
+  .stars-left::before{background:
+    radial-gradient(circle at 18% 6%,rgba(238,242,234,.55) 0,rgba(238,242,234,.55) .9px,transparent 1.6px),
+    radial-gradient(circle at 55% 12%,rgba(0,255,157,.5) 0,rgba(0,255,157,.5) .8px,transparent 1.5px),
+    radial-gradient(circle at 30% 22%,rgba(210,75,245,.45) 0,rgba(210,75,245,.45) .8px,transparent 1.5px),
+    radial-gradient(circle at 70% 30%,rgba(0,205,255,.4) 0,rgba(0,205,255,.4) 1.1px,transparent 3px),
+    radial-gradient(circle at 12% 38%,rgba(238,242,234,.45) 0,rgba(238,242,234,.45) .7px,transparent 1.4px),
+    radial-gradient(circle at 48% 47%,rgba(0,255,157,.55) 0,rgba(0,255,157,.55) 1px,transparent 1.8px),
+    radial-gradient(circle at 80% 55%,rgba(210,75,245,.4) 0,rgba(210,75,245,.4) .8px,transparent 1.5px),
+    radial-gradient(circle at 25% 64%,rgba(0,205,255,.5) 0,rgba(0,205,255,.5) .8px,transparent 1.5px),
+    radial-gradient(circle at 60% 72%,rgba(238,242,234,.35) 0,rgba(238,242,234,.35) 1.2px,transparent 3px),
+    radial-gradient(circle at 40% 81%,rgba(255,150,60,.4) 0,rgba(255,150,60,.4) .8px,transparent 1.5px),
+    radial-gradient(circle at 15% 89%,rgba(0,255,157,.5) 0,rgba(0,255,157,.5) .9px,transparent 1.6px),
+    radial-gradient(circle at 70% 95%,rgba(210,75,245,.45) 0,rgba(210,75,245,.45) .8px,transparent 1.5px)}
+  .stars-right::before{background:
+    radial-gradient(circle at 75% 8%,rgba(0,220,200,.5) 0,rgba(0,220,200,.5) .9px,transparent 1.6px),
+    radial-gradient(circle at 35% 15%,rgba(238,242,234,.5) 0,rgba(238,242,234,.5) .8px,transparent 1.5px),
+    radial-gradient(circle at 60% 25%,rgba(210,75,245,.45) 0,rgba(210,75,245,.45) .8px,transparent 1.5px),
+    radial-gradient(circle at 22% 34%,rgba(0,255,157,.45) 0,rgba(0,255,157,.45) 1.1px,transparent 3px),
+    radial-gradient(circle at 82% 42%,rgba(238,242,234,.4) 0,rgba(238,242,234,.4) .7px,transparent 1.4px),
+    radial-gradient(circle at 45% 52%,rgba(0,205,255,.55) 0,rgba(0,205,255,.55) .9px,transparent 1.6px),
+    radial-gradient(circle at 15% 61%,rgba(210,75,245,.4) 0,rgba(210,75,245,.4) .8px,transparent 1.5px),
+    radial-gradient(circle at 70% 68%,rgba(0,255,157,.5) 0,rgba(0,255,157,.5) .8px,transparent 1.5px),
+    radial-gradient(circle at 38% 77%,rgba(238,242,234,.35) 0,rgba(238,242,234,.35) 1.2px,transparent 3px),
+    radial-gradient(circle at 85% 84%,rgba(255,150,60,.4) 0,rgba(255,150,60,.4) .8px,transparent 1.5px),
+    radial-gradient(circle at 55% 91%,rgba(0,220,200,.5) 0,rgba(0,220,200,.5) .9px,transparent 1.6px),
+    radial-gradient(circle at 25% 97%,rgba(210,75,245,.4) 0,rgba(210,75,245,.4) .8px,transparent 1.5px)}
+  /* a few softly twinkling ones */
+  .stars::after{animation:twinkle 7s ease-in-out infinite alternate}
+  .stars-left::after{background:
+    radial-gradient(circle at 35% 16%,rgba(0,255,157,.6) 0,rgba(0,255,157,.6) 1px,transparent 2.4px),
+    radial-gradient(circle at 65% 42%,rgba(238,242,234,.55) 0,rgba(238,242,234,.55) 1px,transparent 2.4px),
+    radial-gradient(circle at 20% 58%,rgba(210,75,245,.55) 0,rgba(210,75,245,.55) 1px,transparent 2.4px),
+    radial-gradient(circle at 55% 86%,rgba(0,205,255,.55) 0,rgba(0,205,255,.55) 1px,transparent 2.4px)}
+  .stars-right::after{background:
+    radial-gradient(circle at 58% 12%,rgba(210,75,245,.55) 0,rgba(210,75,245,.55) 1px,transparent 2.4px),
+    radial-gradient(circle at 30% 45%,rgba(0,255,157,.6) 0,rgba(0,255,157,.6) 1px,transparent 2.4px),
+    radial-gradient(circle at 75% 58%,rgba(238,242,234,.55) 0,rgba(238,242,234,.55) 1px,transparent 2.4px),
+    radial-gradient(circle at 42% 88%,rgba(0,220,200,.55) 0,rgba(0,220,200,.55) 1px,transparent 2.4px)}
+  @keyframes twinkle{0%{opacity:.25}100%{opacity:.85}}
+  @media(max-width:900px){.stars{display:none}}
+  .topsec{border-bottom:1px solid var(--line);padding-bottom:46px}
+
+  figcaption{color:var(--muted);font-size:13.5px;margin-top:11px;font-style:italic}
+
+  /* callout */
+  .note{background:linear-gradient(180deg,rgba(0,255,157,.07),rgba(0,255,157,0));border:1px solid var(--line);
+    border-radius:12px;padding:12px 15px;margin:18px 0 0;font-size:13px}
+  .note b{color:var(--accent-2)}
+  .note .m{color:var(--accent);font-style:italic;font-weight:600}
+  .note a{color:var(--accent-2);white-space:nowrap}
+
+  /* hero CTA block */
+  .cta-hero{background:linear-gradient(135deg,rgba(0,255,157,.12),rgba(0,255,157,.03));border:1px solid var(--line);border-radius:18px;padding:36px 30px;text-align:center;margin-top:30px}
+  .cta-hero .cta-eyebrow{display:block;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:12px}
+  .cta-hero .cta-h{font-size:clamp(21px,2.7vw,27px);line-height:1.2;margin:0 0 10px;color:var(--ink);letter-spacing:-.01em}
+  .cta-hero .cta-sub{color:var(--soft);font-size:15.5px;margin:0 auto 22px;max-width:540px}
+  .cta-hero .btn{font-size:16px;padding:14px 26px}
+  .cta-hero .btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+
+  /* image lightbox */
+  .lb-zoom{cursor:zoom-in}
+  .lightbox{position:fixed;inset:0;z-index:200;background:rgba(2,4,2,.93);display:none;align-items:center;justify-content:center;padding:30px;cursor:zoom-out}
+  .lightbox.open{display:flex}
+  .lightbox img{max-width:95vw;max-height:92vh;width:auto;border-radius:10px;border:1px solid var(--line);box-shadow:0 24px 70px rgba(0,0,0,.6);cursor:default}
+  .lb-close{position:fixed;top:18px;right:22px;width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-size:24px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .lb-close:hover{border-color:var(--accent);color:var(--accent)}
+
+  /* buttons */
+  .btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:22px}
+  .btn{padding:13px 24px;border-radius:11px;font-weight:600;font-size:15px;display:inline-flex;align-items:center;justify-content:center;min-width:230px;text-align:center}
+  .btn.primary{background:var(--accent);color:var(--on-accent)}
+  .btn.primary:hover{text-decoration:none;filter:brightness(1.05)}
+  .btn.ghost{border:1px solid var(--line);color:var(--ink)}
+  .btn.ghost:hover{text-decoration:none;border-color:var(--accent)}
+  .btn small{display:block;font-weight:500;font-size:11px;opacity:.75;letter-spacing:.02em;margin-top:2px}
+
+  /* footer (reference style) */
+  footer{border-top:1px solid var(--line);padding:30px 0 42px;color:var(--muted);font-size:13px;margin-top:36px}
+  footer .privacy{text-align:center;margin:0 0 30px}
+  footer .privacy a{color:var(--soft)}
+  footer .fbar{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+  footer .wordmark{display:inline-flex;align-items:center}
+  footer .wordmark img{height:30px;width:auto;display:block}
+  footer .social{display:flex;align-items:center;gap:11px;flex-wrap:wrap}
+  footer .social a{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--muted)}
+  footer .social a:hover{color:var(--accent);border-color:var(--accent);text-decoration:none}
+  footer .social svg{width:16px;height:16px;fill:currentColor;display:block}
+
+  /* essay layout */
+  .byline{display:flex;flex-wrap:wrap;align-items:center;gap:8px;color:var(--muted);font-size:14px;margin:2px 0 18px}
+  .byline b{color:var(--ink);font-weight:700}
+  .byline .sep{opacity:.5}
+  .prose{max-width:var(--colw);margin:0 auto;padding:0 22px}
+  .prose p{font-size:16px}
+  .prose h2{margin-top:1.4em}
+  .prose ul{color:var(--soft);padding-left:1.2em;margin:0 0 1em}
+  .prose li{margin:0 0 .6em}
+  /* retreat timeline */
+  .timeline{position:relative;margin:26px 0 8px;padding-left:26px;border-left:2px solid var(--line)}
+  .tl-item{position:relative;padding:0 0 26px 18px}
+  .tl-item:last-child{padding-bottom:4px}
+  .tl-item::before{content:"";position:absolute;left:-33px;top:6px;width:12px;height:12px;border-radius:50%;background:var(--bg);border:2.5px solid var(--accent)}
+  .tl-date{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:700}
+  .tl-item h3{font-size:18px;margin:.25em 0 .3em}
+  .tl-item p{font-size:14.5px;margin:0;color:var(--soft)}
+  .tl-item .src{font-size:12.5px;color:var(--muted)}
+  /* price comparison card */
+  .price-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:26px;margin:26px 0 8px}
+  .price-card .pc-head{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);text-align:center;margin-bottom:18px}
+  .pc-grid{display:grid;grid-template-columns:1fr auto 1fr;gap:18px;align-items:center}
+  .pc-cell{text-align:center}
+  .pc-cell .model{font-size:13px;color:var(--soft);margin-bottom:6px}
+  .pc-cell .price{font-size:clamp(28px,4vw,40px);font-weight:800;letter-spacing:-.02em;color:var(--ink)}
+  .pc-cell.open .price{color:var(--accent)}
+  .pc-cell .per{font-size:12px;color:var(--muted);margin-top:4px}
+  .pc-vs{font-size:13px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:6px 12px}
+  .pc-foot{text-align:center;font-size:12.5px;color:var(--muted);margin-top:16px}
+  @media(max-width:560px){.pc-grid{grid-template-columns:1fr;gap:10px}.pc-vs{justify-self:center}}
+  /* sources appendix */
+  .sources{border-top:1px solid var(--line);margin-top:40px;padding-top:10px}
+  .sources summary{cursor:pointer;font-weight:700;color:var(--ink);padding:14px 0}
+  .sources ol{color:var(--muted);font-size:13.5px;line-height:1.7;padding-left:1.3em}
+  .sources li{margin:0 0 .5em}
+
+  @media(max-width:560px){
+    .band,.pills{
+      width:100vw;
+      max-width:100vw;
+      margin-left:calc(50% - 50vw);
+      margin-right:calc(50% - 50vw);
+      padding-left:22px;
+      padding-right:22px;
+    }
+    h1.title,h2,h3{overflow-wrap:anywhere}
+    .cta-hero{padding:28px 20px}
+    .btn{min-width:min(230px,100%)}
+  }
+</style>
+<style>
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap");
+
+.bn-header {
+  position: sticky;
+  top: 0;
+  z-index: 9999;
+  border-bottom: 1px solid rgba(0, 255, 157, 0.16);
+  background:
+    linear-gradient(180deg, rgba(12, 17, 14, 0.92), rgba(9, 13, 11, 0.9)),
+    radial-gradient(circle at 14% 20%, rgba(201, 71, 255, 0.12), transparent 24%),
+    radial-gradient(circle at 82% 8%, rgba(0, 255, 157, 0.1), transparent 18%);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.bn-header,
+.bn-header * {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: auto !important;
+}
+
+.bn-header-inner {
+  max-width: 1760px;
+  margin: 0 auto;
+  padding: 18px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.bn-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  text-decoration: none;
+  font-family: "Inter", system-ui, sans-serif;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+  transition: filter 0.2s ease, opacity 0.15s ease;
+}
+
+.bn-brand:hover { opacity: 0.92; }
+.bn-brand:hover .bn-brand-logo {
+  animation-duration: 3.2s;
+  filter: drop-shadow(0 0 16px currentColor);
+}
+
+.bn-header .bn-brand .bn-brand-logo,
+svg.bn-brand-logo {
+  height: 24px !important;
+  width: auto !important;
+  max-width: none !important;
+  display: block;
+  color: #00FF9D;
+  filter: drop-shadow(0 0 10px currentColor);
+  transition: filter 0.2s ease, opacity 0.2s ease;
+  animation: bnBrandLogoShift 9s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes bnBrandLogoShift {
+  0%, 18% {
+    color: #00FF9D;
+    filter: drop-shadow(0 0 10px rgba(0, 255, 157, 0.34));
+  }
+  27%, 43% {
+    color: #00D3FF;
+    filter: drop-shadow(0 0 12px rgba(0, 211, 255, 0.34));
+  }
+  52%, 68% {
+    color: #FF00CF;
+    filter: drop-shadow(0 0 12px rgba(255, 0, 207, 0.28));
+  }
+  77%, 90% {
+    color: #4D40FE;
+    filter: drop-shadow(0 0 12px rgba(77, 64, 254, 0.30));
+  }
+  100% {
+    color: #00FF9D;
+    filter: drop-shadow(0 0 10px rgba(0, 255, 157, 0.34));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bn-brand-logo {
+    animation: none;
+    color: #00FF9D;
+    filter: drop-shadow(0 0 10px rgba(0, 255, 157, 0.34));
+  }
+  .bn-brand:hover .bn-brand-logo {
+    filter: drop-shadow(0 0 14px rgba(0, 255, 157, 0.45));
+  }
+}
+
+.bn-brand-divider {
+  color: #8a9479;
+  font-weight: 300;
+  font-size: 22px;
+  line-height: 1;
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+.bn-brand-sub {
+  font-family: "Space Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #c2cdb1;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.bn-nav {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.bn-menu {
+  position: relative;
+}
+
+.bn-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(240, 243, 236, 0.78);
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.bn-trigger:hover { color: #ffffff; }
+
+.bn-trigger svg {
+  width: 12px;
+  height: 12px;
+  stroke: currentColor;
+  opacity: 0.7;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.bn-menu.is-open .bn-trigger svg {
+  transform: rotate(180deg);
+  opacity: 1;
+}
+
+.bn-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 12px);
+  width: min(560px, calc(100vw - 32px));
+  padding: 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(0, 255, 157, 0.18);
+  background: rgba(10, 14, 12, 0.98);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  max-height: min(720px, calc(100vh - 120px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: none;
+}
+
+.bn-menu.is-open .bn-dropdown {
+  display: grid;
+  gap: 8px;
+}
+
+.bn-drop-link {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 12px;
+  text-decoration: none;
+  color: #f3f6f0;
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.bn-drop-link:hover {
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateY(-1px);
+}
+
+.bn-drop-link.is-active {
+  background: rgba(0, 255, 157, 0.1);
+  outline: 1px solid rgba(0, 255, 157, 0.22);
+}
+
+.bn-drop-thumb {
+  position: relative;
+  display: block;
+  width: 92px;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02)),
+    #111712;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.bn-drop-thumb::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(6, 8, 7, 0.04), rgba(6, 8, 7, 0.24));
+  pointer-events: none;
+}
+
+.bn-drop-thumb img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.bn-drop-copy {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.bn-drop-title {
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 0.98rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.bn-drop-meta {
+  color: rgba(215, 220, 208, 0.68);
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 0.74rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.bn-home,
+.bn-subscribe {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+.bn-home {
+  min-height: auto;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  color: rgba(240, 243, 236, 0.78);
+  font-size: 13px;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+
+.bn-home:hover { color: #ffffff; }
+
+.bn-subscribe {
+  min-height: auto;
+  padding: 9px 16px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #00FF9D, #00FF9D);
+  color: #001b00;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 6px 22px rgba(0, 255, 157, 0.24);
+  transition: transform 0.18s ease;
+}
+
+.bn-subscribe:hover {
+  transform: translateY(-1px);
+  color: #001b00;
+}
+
+body[data-bn-current^="newsletter"] {
+  position: relative;
+  background: #0a0e02 !important;
+  color: #ffffff;
+}
+
+body[data-bn-current^="newsletter"]::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 20% 80%, rgba(255, 0, 207, 0.08), transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(0, 211, 255, 0.08), transparent 50%),
+    linear-gradient(180deg, #0c1200 0%, #050700 100%);
+}
+
+body[data-bn-current^="newsletter"]::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 16% 18%, rgba(77, 64, 254, 0.22), transparent 24%),
+    radial-gradient(circle at 84% 34%, rgba(255, 0, 207, 0.14), transparent 22%),
+    radial-gradient(circle at 54% 86%, rgba(0, 211, 255, 0.12), transparent 20%);
+  filter: blur(22px);
+  opacity: 0.9;
+}
+
+.bn-news-shell {
+  position: relative;
+  z-index: 1;
+  padding: 26px 20px 56px;
+}
+
+.bn-news-panel {
+  max-width: 600px;
+  margin: 0 auto;
+  border-radius: 22px;
+  overflow: hidden;
+  border: 1px solid #243017;
+  background: #000000;
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.42);
+}
+
+@media (max-width: 980px) {
+  .bn-header-inner {
+    padding: 16px 22px;
+  }
+
+  .bn-brand {
+    gap: 10px;
+  }
+
+  .bn-subscribe {
+    min-height: 54px;
+    padding: 0 20px;
+  }
+
+  .bn-news-shell {
+    padding: 22px 16px 48px;
+  }
+}
+
+@media (max-width: 760px) {
+  .bn-header-inner {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .bn-brand-sub {
+    white-space: normal;
+    line-height: 1.35;
+  }
+
+  .bn-nav {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .bn-menu {
+    flex: 1 1 calc(50% - 10px);
+    min-width: 0;
+  }
+
+  .bn-trigger,
+  .bn-home,
+  .bn-subscribe {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .bn-dropdown {
+    left: 0;
+    right: auto;
+    width: 100%;
+  }
+
+  .bn-drop-link {
+    grid-template-columns: 80px minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .bn-drop-thumb {
+    width: 80px;
+  }
+
+  .bn-home,
+  .bn-subscribe {
+    flex: 1 1 calc(50% - 10px);
+    min-width: 0;
+    width: auto;
+  }
+}
+
+@media (max-width: 520px) {
+  .bn-header-inner {
+    padding: 14px 16px;
+  }
+
+  .bn-brand {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .bn-brand-logo {
+    height: 20px;
+  }
+
+  .bn-brand-divider {
+    font-size: 18px;
+  }
+
+  .bn-brand-sub {
+    font-size: 10px;
+  }
+
+  .bn-brand-divider {
+    display: none;
+  }
+
+  .bn-brand-sub {
+    width: 100%;
+    font-size: 0.76rem;
+    letter-spacing: 0.18em;
+  }
+
+  .bn-drop-thumb {
+    width: 80px;
+    aspect-ratio: 1 / 1;
+  }
+
+  .bn-news-shell {
+    padding: 18px 12px 40px;
+  }
+
+  .bn-news-panel {
+    border-radius: 18px;
+  }
+}
+
+/* ============================================================
+   PERSISTENT FOOTER
+   Single shared footer used across blog.sogni.ai and all blog
+   + newsletter sub-pages. Mirrors the Sogni.ai footer style.
+   ============================================================ */
+.bn-footer {
+  background: #000;
+  color: rgba(255, 255, 255, 0.78);
+  font-family: "Inter", system-ui, sans-serif;
+  padding: 56px 24px 48px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.bn-footer-inner {
+  max-width: 1760px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+
+.bn-footer-top {
+  text-align: center;
+  font-size: 15px;
+  color: rgba(231, 235, 224, 0.72);
+}
+
+.bn-footer-top a {
+  color: rgba(231, 235, 224, 0.72);
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.25);
+  text-underline-offset: 3px;
+  transition: color 0.18s ease;
+}
+
+.bn-footer-top a:hover { color: #fff; }
+
+.bn-footer-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+
+.bn-footer-brand {
+  display: inline-flex;
+  align-items: center;
+  color: #f6f6f6;
+  text-decoration: none;
+  transition: opacity 0.18s ease;
+}
+
+.bn-footer-brand:hover { opacity: 0.82; }
+
+.bn-footer-brand-logo {
+  height: 56px;
+  width: auto;
+  display: block;
+  color: #ffffff;
+}
+
+.bn-footer-socials {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.bn-footer-social {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.72);
+  background: transparent;
+  text-decoration: none;
+  transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.bn-footer-social:hover {
+  color: #000;
+  background: #fff;
+  border-color: #fff;
+  transform: translateY(-1px);
+}
+
+.bn-footer-social svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+  fill: currentColor;
+}
+
+@media (max-width: 760px) {
+  .bn-footer {
+    padding: 40px 18px 36px;
+  }
+
+  .bn-footer-inner {
+    gap: 32px;
+  }
+
+  .bn-footer-main {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 24px;
+  }
+
+  .bn-footer-brand-logo {
+    height: 44px;
+  }
+
+  .bn-footer-socials {
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .bn-footer-social {
+    width: 34px;
+    height: 34px;
+  }
+}
+
+</style>
+<script defer>
+(() => {
+  const previewMap = {
+    "blog-unlimited-compute-model": {
+      src: "https://blog.sogni.ai/assets/thumb-unlimited-compute-model.jpg?v=unl20260716b",
+      alt: "Why Unlimited AI Needs a Different Compute Model article preview",
+    },
+    "blog-ugc-without-creators": {
+      src: "https://blog.sogni.ai/assets/thumb-ugc-without-creators.jpg?v=ugc20260625",
+      alt: "UGC Without the Creators article preview",
+    },
+    "blog-storyboards-to-ad": {
+      src: "https://blog.sogni.ai/assets/thumb-storyboards-to-ad.png?v=thumbs2026",
+      alt: "Product photo to video ad article preview",
+    },
+    "blog-storyboards-that-move": {
+      src: "https://blog.sogni.ai/assets/thumb-storyboards.png?v=thumbs2026",
+      alt: "Storyboards that move article preview",
+    },
+    "blog-personas": {
+      src: "https://blog.sogni.ai/assets/thumb-personas.png?v=thumbs2026",
+      alt: "Meet your Personas article preview",
+    },
+    "blog-architectural-renders": {
+      src: "https://blog.sogni.ai/assets/thumb-architectural.png?v=thumbs2026",
+      alt: "Architectural renders article preview",
+    },
+    "blog-creative-assistant": {
+      src: "https://blog.sogni.ai/assets/thumb-creative-assistant.png?v=thumbs2026",
+      alt: "Creative Assistant article preview",
+    },
+    "blog-starting-ending-frames": {
+      src: "https://blog.sogni.ai/assets/thumb-frames.png?v=thumbs2026",
+      alt: "Starting and Ending Frames article preview",
+    },
+    "newsletter-20": {
+      src: "https://news.sogni.ai/sogni-sync/assets/20/seedance-on-sogni.jpg?v=20260504b",
+      alt: "Newsletter volume 20 preview",
+    },
+    "newsletter-19": {
+      src: "https://news.sogni.ai/sogni-sync/assets/19/sogni-time.jpg",
+      alt: "Newsletter volume 19 preview",
+    },
+    "newsletter-18": {
+      src: "https://news.sogni.ai/sogni-sync/assets/18/sogni_tzapac_overeasy_kontext.jpg",
+      alt: "Newsletter volume 18 preview",
+    },
+  };
+
+  document.querySelectorAll(".bn-drop-link[data-bn-page]").forEach((link) => {
+    const page = link.dataset.bnPage;
+    const preview = page ? previewMap[page] : null;
+    if (!preview) {
+      return;
+    }
+
+    let copy = link.querySelector(".bn-drop-copy");
+    if (!copy) {
+      copy = document.createElement("span");
+      copy.className = "bn-drop-copy";
+      Array.from(link.children)
+        .filter((child) =>
+          child.classList?.contains("bn-drop-title") ||
+          child.classList?.contains("bn-drop-meta"),
+        )
+        .forEach((child) => copy.appendChild(child));
+      link.appendChild(copy);
+    }
+
+    if (!link.querySelector(".bn-drop-thumb")) {
+      const thumb = document.createElement("span");
+      thumb.className = "bn-drop-thumb";
+
+      const img = document.createElement("img");
+      img.src = preview.src;
+      img.alt = preview.alt;
+      img.loading = "lazy";
+
+      thumb.appendChild(img);
+      link.prepend(thumb);
+    }
+  });
+
+  const menus = Array.from(document.querySelectorAll("[data-bn-menu]"));
+  if (!menus.length) {
+    return;
+  }
+
+  const closeMenus = (except = null) => {
+    menus.forEach((menu) => {
+      if (menu === except) {
+        return;
+      }
+      menu.classList.remove("is-open");
+      const trigger = menu.querySelector(".bn-trigger");
+      if (trigger) {
+        trigger.setAttribute("aria-expanded", "false");
+      }
+    });
+  };
+
+  menus.forEach((menu) => {
+    const trigger = menu.querySelector(".bn-trigger");
+    if (!trigger) {
+      return;
+    }
+
+    trigger.addEventListener("click", () => {
+      const opening = !menu.classList.contains("is-open");
+      closeMenus(opening ? menu : null);
+      menu.classList.toggle("is-open", opening);
+      trigger.setAttribute("aria-expanded", opening ? "true" : "false");
+    });
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!menus.some((menu) => menu.contains(event.target))) {
+      closeMenus();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeMenus();
+    }
+  });
+
+  const current = document.body?.dataset?.bnCurrent;
+  if (current) {
+    document.querySelectorAll(".bn-drop-link[data-bn-page]").forEach((link) => {
+      if (link.dataset.bnPage === current) {
+        link.classList.add("is-active");
+        link.setAttribute("aria-current", "page");
+      }
+    });
+  }
+})();
+
+</script>
+<script defer>
+(() => {
+  const SOGNI_WORDMARK_SVG = '<svg class="bn-footer-brand-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 387 160" aria-hidden="true"><path fill="currentColor" d="M17.2,106.99c5.33,2.29,11.3,3.41,17.95,3.41,7.03,0,13.11-1.33,18.23-3.98,5.23-2.75,9.17-6.34,11.82-10.81,2.76-4.44,4.12-9.19,4.12-14.2,0-6.24-1.47-11.22-4.43-14.92-2.86-3.8-6.36-6.57-10.53-8.37-4.09-1.8-9.4-3.59-15.96-5.39-4.94-1.34-8.83-2.57-11.69-3.7-2.86-1.13-5.23-2.64-7.13-4.54-1.8-1.98-2.7-4.49-2.7-7.52,0-4.44,1.47-7.86,4.4-10.22,2.94-2.36,6.75-3.54,11.41-3.54,5.12,0,9.27,1.28,12.39,3.83,3.14,2.57,4.84,5.62,5.12,9.24h17.95c-.67-8.34-4.09-14.87-10.25-19.62-6.08-4.83-13.9-7.24-23.51-7.24-6.75,0-12.67,1.13-17.82,3.41-5.12,2.29-9.11,5.55-11.97,9.81C1.73,26.91.31,31.89.31,37.56c0,6.16,1.42,11.09,4.27,14.76,2.86,3.7,6.28,6.44,10.25,8.24,4.09,1.69,9.35,3.42,15.81,5.11,5.12,1.34,9.11,2.57,11.97,3.7,2.94,1.13,5.36,2.75,7.26,4.83,1.98,2.08,2.99,4.78,2.99,8.09,0,4.26-1.57,7.75-4.71,10.5-3.14,2.64-7.49,3.98-13.11,3.98s-9.63-1.36-12.67-4.11c-2.94-2.75-4.61-6.24-5-10.5H0c0,5.67,1.52,10.66,4.56,14.92,3.04,4.26,7.21,7.57,12.54,9.94l.1-.03ZM102.48,105.71c5.97,3.31,12.67,4.98,20.08,4.98s14.34-1.67,20.52-4.98c6.28-3.42,11.2-8.19,14.83-14.35,3.6-6.16,5.41-13.22,5.41-21.16s-1.75-15.02-5.28-21.16c-3.53-6.14-8.32-10.89-14.39-14.2-6.08-3.31-12.87-4.98-20.37-4.98s-14.29,1.67-20.37,4.98c-6.08,3.31-10.87,8.06-14.39,14.2-3.53,6.16-5.28,13.22-5.28,21.16s1.7,15.15,5.12,21.31c3.42,6.06,8.11,10.81,14.11,14.2ZM134.25,93.64c-3.61,1.98-7.49,2.98-11.69,2.98-6.54,0-12.03-2.29-16.38-6.83-4.27-4.65-6.41-11.17-6.41-19.62,0-5.67,1.06-10.48,3.14-14.35,2.08-3.98,4.89-6.96,8.39-8.96,3.61-1.98,7.49-2.98,11.69-2.98s8.08,1,11.69,2.98c3.6,1.98,6.51,4.98,8.7,8.96,2.19,3.88,3.27,8.68,3.27,14.35s-1.13,10.5-3.42,14.48c-2.29,3.98-5.28,6.96-8.99,8.96v.03ZM227.1,33.53c-4.66-2.46-10.02-3.7-16.09-3.7-6.85,0-13.11,1.69-18.8,5.11-5.61,3.31-10.07,8.01-13.39,14.07-3.22,6.06-4.84,13.02-4.84,20.88s1.62,14.92,4.84,21.16c3.32,6.16,7.78,10.99,13.39,14.48,5.69,3.42,11.97,5.11,18.8,5.11,5.97,0,11.3-1.23,15.96-3.7,4.74-2.57,8.5-5.67,11.25-9.37v13.07c0,7.57-2.03,13.35-6.13,17.33-3.99,3.98-9.27,5.96-15.81,5.96-5.61,0-10.45-1.28-14.52-3.83-3.99-2.46-6.59-5.72-7.83-9.81h-16.09c.95,8.53,4.94,15.25,11.97,20.18,7.03,5.03,15.86,7.52,26.5,7.52,7.98,0,14.81-1.62,20.52-4.83,5.79-3.21,10.22-7.68,13.26-13.35,3.04-5.6,4.56-11.99,4.56-19.18V31.07h-16.38v11.37c-2.65-3.59-6.36-6.57-11.12-8.96l-.05.05ZM234.8,56.13c2.29,3.98,3.42,8.68,3.42,14.07s-1.13,10.14-3.42,14.2c-2.19,3.98-5.07,7.01-8.7,9.09-3.61,2.08-7.49,3.13-11.69,3.13s-7.98-1.05-11.69-3.13c-3.6-2.18-6.57-5.32-8.83-9.37-2.19-4.08-3.27-8.81-3.27-14.2s1.08-10.04,3.27-13.92c2.29-3.98,5.23-6.96,8.83-8.96,3.6-2.08,7.49-3.13,11.69-3.13s8.08,1.05,11.69,3.13c3.6,2.08,6.51,5.11,8.7,9.09ZM332.08,33.69c-4.84-2.57-10.35-3.83-16.53-3.83-4.66,0-9.06.9-13.26,2.7-4.09,1.8-7.47,4.31-10.12,7.52v-8.96h-16.25v78.29h16.25v-43.75c0-7.01,1.75-12.35,5.28-16.05,3.61-3.8,8.45-5.67,14.52-5.67s10.87,1.9,14.39,5.67c3.5,3.7,5.28,9.04,5.28,16.05v43.75h16.09v-46.17c0-7.11-1.37-13.17-4.12-18.18-2.76-5.03-6.59-8.81-11.54-11.37ZM369.34,17.77c1.98,1.98,4.45,2.98,7.42,2.98s5.28-1,7.26-2.98c1.98-1.98,2.99-4.44,2.99-7.39s-1-5.39-2.99-7.39c-1.98-1.98-4.43-2.98-7.26-2.98s-5.41,1-7.42,2.98c-1.98,1.98-2.99,4.44-2.99,7.39s1,5.39,2.99,7.39ZM384.71,109.41V31.12h-16.25v78.29h16.25Z"/></svg>';
+
+  const SOCIALS = [
+    {
+      label: "Discord",
+      href: "https://discord.com/invite/2JjzA2zrrc",
+      svg: '<svg viewBox="0 0 253 192" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill="currentColor" d="M89,0c.67,0,1.33,0,2,0,2.21,4.59,4.41,9.17,6.13,12.73h58.65c1.74-3.57,3.98-8.15,6.22-12.73.67,0,1.33,0,2,0,.57.29,1.11.74,1.71.84,15.76,2.73,30.84,7.64,45.41,14.15,1.58.7,3.25,1.85,4.18,3.26,19.16,28.94,32.05,60.27,35.79,95.01.85,7.89,1.29,15.83,1.92,23.74v2c-.34,5.61-.44,11.25-1.13,16.82-.25,2.02-1.43,4.58-3.01,5.66-7.4,5.03-14.77,10.29-22.76,14.23-12.1,5.97-24.71,10.92-37.1,16.3h-1c-4.62-7.16-9.24-14.31-13.85-21.47,7.79-3.82,14.43-7.08,21.26-10.43-2.83-3.92-5.28-4.68-9.33-2.98-39.7,16.7-79.52,16.71-119.21-.02-4.06-1.71-6.48-.85-9.37,2.98,7.01,3.43,13.78,6.74,21.37,10.46-4.72,7.31-9.3,14.39-13.87,21.46h-1c-.69-.37-1.34-.86-2.07-1.1-20.46-6.71-39.43-16.35-57.06-28.7-2.75-1.93-3.93-4.01-3.95-7.36C.88,149.22.33,143.61,0,138c0-.33,0-.67,0-1,.36-6.28.5-12.59,1.13-18.84,3.35-33.26,14.31-63.88,31.51-92.5,4.2-6.98,9.24-11.74,16.99-13.97C62.79,7.9,75.88,3.91,89,0ZM61.78,105.51c0,15.12,11.93,27.1,25.24,25.37,11.04-1.43,19.71-11.84,20.29-24.38.57-12.15-7.11-23.24-17.85-25.79-14.5-3.43-27.7,8.39-27.69,24.8ZM191.37,108.69c-.38-11.83-3.2-19.29-10.38-24.43-6.92-4.96-14.57-5.83-22.14-1.75-9.01,4.86-13.09,12.94-13.18,23.03-.1,10.97,6.61,21.05,15.94,24.24,8.78,3,18.34.43,23.85-7.69,3.23-4.77,4.76-10.68,5.92-13.4Z"/></svg>',
+    },
+    {
+      label: "Telegram",
+      href: "https://t.me/sogniai",
+      svg: '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill="currentColor" d="M21.94,2.44c-.74-.52-1.68-.6-2.51-.21L1.94,11.45c-1.31.69-1.24,2.58.12,3.19.29.13.54.23.74.28l2.14.54c.74.19,1.53.05,2.17-.38l9.09-6.98c.21-.16.5-.13.67.06.18.19.18.48,0,.68l-6.54,7.17c-.29.29-.43.68-.38,1.07.04.39.26.73.59.94l.04.02,7.94,3.78c1.22.58,2.64-.22,2.79-1.56l1.69-15.53c.16-.91-.23-1.76-.97-2.28Z"/></svg>',
+    },
+    {
+      label: "YouTube",
+      href: "https://www.youtube.com/@SogniAI?sub_confirmation=1",
+      svg: '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill="currentColor" d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>',
+    },
+    {
+      label: "Reddit",
+      href: "https://www.reddit.com/r/Sogni_Protocol/",
+      svg: '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill="currentColor" d="M12 0C5.373 0 0 5.373 0 12c0 6.627 5.373 12 12 12s12-5.373 12-12c0-6.627-5.373-12-12-12zm6.193 13.9a1.6 1.6 0 0 1-1.6 1.6c-.027 0-.054 0-.08-.003-.16 1.95-2.78 3.5-6.013 3.5-3.235 0-5.855-1.55-6.014-3.5a1.6 1.6 0 1 1 0-3.2c.43 0 .82.17 1.107.448 1.034-.74 2.45-1.205 4.027-1.273l.762-3.59a.4.4 0 0 1 .48-.307l2.487.527a1.119 1.119 0 1 1-.21.96l-2.247-.477-.687 3.22c1.553.078 2.953.547 3.97 1.287a1.6 1.6 0 0 1 2.71 1.16zM8 14.4a.96.96 0 1 1 0-1.92.96.96 0 0 1 0 1.92zm7.04-1.92a.96.96 0 1 1 0 1.92.96.96 0 0 1 0-1.92zm-.07 3.65a.4.4 0 0 1 .57.567 4.27 4.27 0 0 1-3.04 1.255 4.27 4.27 0 0 1-3.04-1.256.4.4 0 1 1 .567-.566 3.47 3.47 0 0 0 2.473 1.022 3.47 3.47 0 0 0 2.47-1.022z"/></svg>',
+    },
+    {
+      label: "Instagram",
+      href: "https://www.instagram.com/sogni.ai/",
+      svg: '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill="currentColor" d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/></svg>',
+    },
+    {
+      label: "X (Twitter)",
+      href: "https://x.com/sogni_protocol",
+      svg: '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill="currentColor" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>',
+    },
+    {
+      label: "LinkedIn",
+      href: "https://www.linkedin.com/company/sogni-ai/",
+      svg: '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill="currentColor" d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.063 2.063 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>',
+    },
+    {
+      label: "GitHub",
+      href: "https://github.com/Sogni-AI",
+      svg: '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>',
+    },
+    {
+      label: "Medium",
+      href: "https://medium.com/sogni",
+      svg: '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill="currentColor" d="M13.54 12a6.8 6.8 0 0 1-6.77 6.82A6.8 6.8 0 0 1 0 12a6.8 6.8 0 0 1 6.77-6.82A6.8 6.8 0 0 1 13.54 12zM20.96 12c0 3.54-1.51 6.42-3.38 6.42-1.87 0-3.39-2.88-3.39-6.42s1.52-6.42 3.39-6.42 3.38 2.88 3.38 6.42M24 12c0 3.17-.53 5.75-1.19 5.75-.66 0-1.19-2.58-1.19-5.75s.53-5.75 1.19-5.75C23.47 6.25 24 8.83 24 12z"/></svg>',
+    },
+  ];
+
+  function build() {
+    const socialsHTML = SOCIALS.map(
+      (s) =>
+        `<a class="bn-footer-social" href="${s.href}" target="_blank" rel="noopener" aria-label="${s.label}">${s.svg}</a>`
+    ).join("");
+
+    const footer = document.createElement("footer");
+    footer.className = "bn-footer";
+    footer.setAttribute("role", "contentinfo");
+    footer.innerHTML = `
+      <div class="bn-footer-inner">
+        <div class="bn-footer-top">
+          We care about your data in our <a href="https://www.sogni.ai/privacy-policy" target="_blank" rel="noopener">privacy policy</a>.
+        </div>
+        <div class="bn-footer-main">
+          <a class="bn-footer-brand" href="https://www.sogni.ai/" target="_blank" rel="noopener" aria-label="Sogni">
+            ${SOGNI_WORDMARK_SVG}
+          </a>
+          <div class="bn-footer-socials">
+            ${socialsHTML}
+          </div>
+        </div>
+      </div>
+    `;
+    return footer;
+  }
+
+  function init() {
+    // Hide any existing legacy footers so we don't double up.
+    document
+      .querySelectorAll("footer.site-footer, footer:not(.bn-footer)")
+      .forEach((el) => {
+        el.style.display = "none";
+      });
+
+    // Avoid double-inject if script runs twice.
+    if (document.querySelector("footer.bn-footer")) return;
+
+    document.body.appendChild(build());
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
+
+</script>
+</head>
+<body data-bn-current="blog-unlimited-compute-model">
+
+<!-- STAR DUST (decorative side accents) -->
+<div class="stars stars-left" aria-hidden="true"></div>
+<div class="stars stars-right" aria-hidden="true"></div>
+
+<!-- HEADER -->
+<div class="bn-header">
+  <div class="bn-header-inner">
+    <a class="bn-brand" href="https://blog.sogni.ai/">
+      <svg class="bn-brand-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 387 160" aria-hidden="true"><path fill="currentColor" d="M17.2,106.99c5.33,2.29,11.3,3.41,17.95,3.41,7.03,0,13.11-1.33,18.23-3.98,5.23-2.75,9.17-6.34,11.82-10.81,2.76-4.44,4.12-9.19,4.12-14.2,0-6.24-1.47-11.22-4.43-14.92-2.86-3.8-6.36-6.57-10.53-8.37-4.09-1.8-9.4-3.59-15.96-5.39-4.94-1.34-8.83-2.57-11.69-3.7-2.86-1.13-5.23-2.64-7.13-4.54-1.8-1.98-2.7-4.49-2.7-7.52,0-4.44,1.47-7.86,4.4-10.22,2.94-2.36,6.75-3.54,11.41-3.54,5.12,0,9.27,1.28,12.39,3.83,3.14,2.57,4.84,5.62,5.12,9.24h17.95c-.67-8.34-4.09-14.87-10.25-19.62-6.08-4.83-13.9-7.24-23.51-7.24-6.75,0-12.67,1.13-17.82,3.41-5.12,2.29-9.11,5.55-11.97,9.81C1.73,26.91.31,31.89.31,37.56c0,6.16,1.42,11.09,4.27,14.76,2.86,3.7,6.28,6.44,10.25,8.24,4.09,1.69,9.35,3.42,15.81,5.11,5.12,1.34,9.11,2.57,11.97,3.7,2.94,1.13,5.36,2.75,7.26,4.83,1.98,2.08,2.99,4.78,2.99,8.09,0,4.26-1.57,7.75-4.71,10.5-3.14,2.64-7.49,3.98-13.11,3.98s-9.63-1.36-12.67-4.11c-2.94-2.75-4.61-6.24-5-10.5H0c0,5.67,1.52,10.66,4.56,14.92,3.04,4.26,7.21,7.57,12.54,9.94l.1-.03ZM102.48,105.71c5.97,3.31,12.67,4.98,20.08,4.98s14.34-1.67,20.52-4.98c6.28-3.42,11.2-8.19,14.83-14.35,3.6-6.16,5.41-13.22,5.41-21.16s-1.75-15.02-5.28-21.16c-3.53-6.14-8.32-10.89-14.39-14.2-6.08-3.31-12.87-4.98-20.37-4.98s-14.29,1.67-20.37,4.98c-6.08,3.31-10.87,8.06-14.39,14.2-3.53,6.16-5.28,13.22-5.28,21.16s1.7,15.15,5.12,21.31c3.42,6.06,8.11,10.81,14.11,14.2ZM134.25,93.64c-3.61,1.98-7.49,2.98-11.69,2.98-6.54,0-12.03-2.29-16.38-6.83-4.27-4.65-6.41-11.17-6.41-19.62,0-5.67,1.06-10.48,3.14-14.35,2.08-3.98,4.89-6.96,8.39-8.96,3.61-1.98,7.49-2.98,11.69-2.98s8.08,1,11.69,2.98c3.6,1.98,6.51,4.98,8.7,8.96,2.19,3.88,3.27,8.68,3.27,14.35s-1.13,10.5-3.42,14.48c-2.29,3.98-5.28,6.96-8.99,8.96v.03ZM227.1,33.53c-4.66-2.46-10.02-3.7-16.09-3.7-6.85,0-13.11,1.69-18.8,5.11-5.61,3.31-10.07,8.01-13.39,14.07-3.22,6.06-4.84,13.02-4.84,20.88s1.62,14.92,4.84,21.16c3.32,6.16,7.78,10.99,13.39,14.48,5.69,3.42,11.97,5.11,18.8,5.11,5.97,0,11.3-1.23,15.96-3.7,4.74-2.57,8.5-5.67,11.25-9.37v13.07c0,7.57-2.03,13.35-6.13,17.33-3.99,3.98-9.27,5.96-15.81,5.96-5.61,0-10.45-1.28-14.52-3.83-3.99-2.46-6.59-5.72-7.83-9.81h-16.09c.95,8.53,4.94,15.25,11.97,20.18,7.03,5.03,15.86,7.52,26.5,7.52,7.98,0,14.81-1.62,20.52-4.83,5.79-3.21,10.22-7.68,13.26-13.35,3.04-5.6,4.56-11.99,4.56-19.18V31.07h-16.38v11.37c-2.65-3.59-6.36-6.57-11.12-8.96l-.05.05ZM234.8,56.13c2.29,3.98,3.42,8.68,3.42,14.07s-1.13,10.14-3.42,14.2c-2.19,3.98-5.07,7.01-8.7,9.09-3.61,2.08-7.49,3.13-11.69,3.13s-7.98-1.05-11.69-3.13c-3.6-2.18-6.57-5.32-8.83-9.37-2.19-4.08-3.27-8.81-3.27-14.2s1.08-10.04,3.27-13.92c2.29-3.98,5.23-6.96,8.83-8.96,3.6-2.08,7.49-3.13,11.69-3.13s8.08,1.05,11.69,3.13c3.6,2.08,6.51,5.11,8.7,9.09ZM332.08,33.69c-4.84-2.57-10.35-3.83-16.53-3.83-4.66,0-9.06.9-13.26,2.7-4.09,1.8-7.47,4.31-10.12,7.52v-8.96h-16.25v78.29h16.25v-43.75c0-7.01,1.75-12.35,5.28-16.05,3.61-3.8,8.45-5.67,14.52-5.67s10.87,1.9,14.39,5.67c3.5,3.7,5.28,9.04,5.28,16.05v43.75h16.09v-46.17c0-7.11-1.37-13.17-4.12-18.18-2.76-5.03-6.59-8.81-11.54-11.37ZM369.34,17.77c1.98,1.98,4.45,2.98,7.42,2.98s5.28-1,7.26-2.98c1.98-1.98,2.99-4.44,2.99-7.39s-1-5.39-2.99-7.39c-1.98-1.98-4.43-2.98-7.26-2.98s-5.41,1-7.42,2.98c-1.98,1.98-2.99,4.44-2.99,7.39s1,5.39,2.99,7.39ZM384.71,109.41V31.12h-16.25v78.29h16.25Z"/></svg>
+      <span class="bn-brand-divider">/</span>
+      <span class="bn-brand-sub">Blogs &amp; Newsletters</span>
+    </a>
+    <nav class="bn-nav" aria-label="Blogs and newsletters">
+      <div class="bn-menu" data-bn-menu>
+        <button class="bn-trigger" type="button" aria-expanded="false">
+          <span>Blogs</span>
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><polyline points="6 9 12 15 18 9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></polyline></svg>
+        </button>
+        <div class="bn-dropdown">
+          <a class="bn-drop-link" data-bn-page="blog-unlimited-compute-model" href="https://blog.sogni.ai/blogs/unlimited-compute-model/">
+            <span class="bn-drop-title">Why Unlimited AI Needs a Different Compute Model</span>
+            <span class="bn-drop-meta">Blog &middot; Essay</span>
+          </a>
+          <a class="bn-drop-link" data-bn-page="blog-ugc-without-creators" href="https://blog.sogni.ai/blogs/ugc-without-creators/">
+            <span class="bn-drop-title">UGC Without the Creators</span>
+            <span class="bn-drop-meta">Blog &middot; UGC Ads</span>
+          </a>
+          <a class="bn-drop-link" data-bn-page="blog-storyboards-to-ad" href="https://blog.sogni.ai/blogs/storyboards-to-ad/">
+            <span class="bn-drop-title">How to Turn a Product Photo into a Video Ad with AI</span>
+            <span class="bn-drop-meta">Blog &middot; Video Ads</span>
+          </a>
+          <a class="bn-drop-link" data-bn-page="blog-storyboards-that-move" href="https://blog.sogni.ai/blogs/storyboards-that-move/">
+            <span class="bn-drop-title">Storyboards that move: from one prompt to a finished video</span>
+            <span class="bn-drop-meta">Blog &middot; Storyboards</span>
+          </a>
+          <a class="bn-drop-link" data-bn-page="blog-personas" href="https://blog.sogni.ai/blogs/personas/">
+            <span class="bn-drop-title">Meet your Personas: your face in every render</span>
+            <span class="bn-drop-meta">Blog &middot; Personas</span>
+          </a>
+          <a class="bn-drop-link" data-bn-page="blog-architectural-renders" href="https://blog.sogni.ai/blogs/architectural-renders/">
+            <span class="bn-drop-title">Why You No Longer Need to Outsource Your Architectural Renders</span>
+            <span class="bn-drop-meta">Blog &middot; Architecture</span>
+          </a>
+          <a class="bn-drop-link" data-bn-page="blog-creative-assistant" href="https://blog.sogni.ai/blogs/creative-assistant/">
+            <span class="bn-drop-title">Meet the New Creative Assistant in Sogni Studio / Pro</span>
+            <span class="bn-drop-meta">Blog &middot; AI Workflows</span>
+          </a>
+          <a class="bn-drop-link" data-bn-page="blog-starting-ending-frames" href="https://blog.sogni.ai/blogs/starting-ending-frames/">
+            <span class="bn-drop-title">Starting &amp; Ending Frames</span>
+            <span class="bn-drop-meta">Blog &middot; Video &amp; Motion</span>
+          </a>
+        </div>
+      </div>
+      <div class="bn-menu" data-bn-menu>
+        <button class="bn-trigger" type="button" aria-expanded="false">
+          <span>Newsletters</span>
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><polyline points="6 9 12 15 18 9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></polyline></svg>
+        </button>
+        <div class="bn-dropdown">
+          <a class="bn-drop-link" data-bn-page="newsletter-20" href="https://blog.sogni.ai/newsletters/20/">
+            <span class="bn-drop-title">Creativity enters the agentic era</span>
+            <span class="bn-drop-meta">Newsletter &middot; Volume 20</span>
+          </a>
+          <a class="bn-drop-link" data-bn-page="newsletter-19" href="https://blog.sogni.ai/newsletters/19/">
+            <span class="bn-drop-title">Season 6 is live</span>
+            <span class="bn-drop-meta">Newsletter &middot; Volume 19</span>
+          </a>
+          <a class="bn-drop-link" data-bn-page="newsletter-18" href="https://blog.sogni.ai/newsletters/18/">
+            <span class="bn-drop-title">2025: The Year Sogni Came Alive</span>
+            <span class="bn-drop-meta">Newsletter &middot; Volume 18</span>
+          </a>
+        </div>
+      </div>
+      <a class="bn-home" href="https://blog.sogni.ai/">Back to main page</a>
+      <a class="bn-subscribe" href="https://www.sogni.ai/#wf-form-Marketing-Email-Signup" target="_blank" rel="noopener">Subscribe</a>
+    </nav>
+  </div>
+</div>
+
+<!-- SCROLL-DRIVEN 3D BANNER -->
+<section class="scrolly" id="scrolly">
+  <div class="scrolly-sticky">
+    <video class="scrolly-video" src="assets/gpu-scroll.mp4" poster="assets/gpu-scroll-poster.jpg" muted playsinline preload="auto" aria-label="A consumer GPU drifting through a psychedelic compute vortex"></video>
+    <div class="scrolly-vignette"></div>
+
+    <div class="scrolly-cap" data-from="0" data-to="0.20">
+      <h2>Why Unlimited AI Needs a Different Compute Model</h2>
+    </div>
+    <div class="scrolly-cap" data-from="0.24" data-to="0.46">
+      <h2>Every unlimited AI plan dies the same way.</h2>
+    </div>
+    <div class="scrolly-cap" data-from="0.50" data-to="0.72">
+      <h2>The problem was never &ldquo;unlimited.&rdquo;<br>It was the cost structure.</h2>
+    </div>
+    <div class="scrolly-cap" data-from="0.76" data-to="0.94">
+      <h2><b>51% of net revenue</b> pays the GPUs that render your work.</h2>
+    </div>
+
+    <div class="scrolly-dim"></div>
+    <div class="stars stars-left" aria-hidden="true"></div>
+    <div class="stars stars-right" aria-hidden="true"></div>
+
+    <div class="scrolly-hint">
+      <span>Scroll</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </div>
+  </div>
+</section>
+
+<!-- MODEL PILLS -->
+<div class="pills">
+  <div class="pill"><b>Sogni Unlimited &middot; $20/mo</b><span>Fair-use unlimited image, video, music &amp; chat on open models.</span></div>
+  <div class="pill"><b>51% of net revenue</b><span>Accrues to the GPU operators who render the work.</span></div>
+  <div class="pill"><b>Sogni Supernet</b><span>158 million renders in its first public year.</span></div>
+</div>
+
+<!-- TITLE + BYLINE + INTRO -->
+<section class="first">
+  <div class="prose">
+    <span class="eyebrow">Essay &middot; Unlimited economics</span>
+    <h1 class="title">Why Unlimited AI Needs a Different Compute Model</h1>
+    <div class="byline">By <b>Mauvis Ledford</b>, CEO<span class="sep">&middot;</span><span>July 2026</span></div>
+
+    <p>Every few months, an AI company launches an unlimited generation plan. Creators celebrate. A few months later, the plan quietly disappears — closed to new subscribers, converted to credits, "evolved" into something metered. This has now happened enough times that it's not an anecdote; it's a pattern:</p>
+
+    <div class="timeline">
+      <div class="tl-item">
+        <span class="tl-date">December 2024</span>
+        <h3>Pika discontinues its Unlimited plan</h3>
+        <p>moving users to a credit-based tier. The stated reason: "unsustainable due to misuse." <a class="src" href="https://pikalabs.org/pika-has-officially-discontinued-the-unlimited-plan/" target="_blank" rel="noopener">source</a></p>
+      </div>
+      <div class="tl-item">
+        <span class="tl-date">June 2025</span>
+        <h3>Hailuo (MiniMax) closes its $94.99 Unlimited plan to new buyers</h3>
+        <p>"unlimited" now covers only the older Hailuo-01 model, with flagship models gated behind credits on $124.99–$199.99 tiers. <a class="src" href="https://hailuoai.video/doc/payment-policy.html" target="_blank" rel="noopener">source</a></p>
+      </div>
+      <div class="tl-item">
+        <span class="tl-date">March 2026</span>
+        <h3>OpenAI announces the shutdown of its Sora app</h3>
+        <p>after <a href="https://www.forbes.com/sites/phoebeliu/2025/11/10/openai-spending-ai-generated-sora-videos/" target="_blank" rel="noopener">Forbes reported</a> the free video feed was costing up to an estimated $15 million per day in compute. <a class="src" href="https://help.openai.com/en/articles/20001152-what-to-know-about-the-sora-discontinuation" target="_blank" rel="noopener">source</a></p>
+      </div>
+      <div class="tl-item">
+        <span class="tl-date">April 2026</span>
+        <h3>Freepik</h3>
+        <p>which launched unlimited AI generation to real acclaim in July 2025, reintroduces credits for premium models — roughly ten models stay free as it rebrands to Magnific. Unlimited lasted nine months. <a class="src" href="https://www.eesel.ai/blog/freepik-ai-pricing" target="_blank" rel="noopener">source</a></p>
+      </div>
+      <div class="tl-item">
+        <span class="tl-date">June 1, 2026</span>
+        <h3>Runway closes its $95/month Unlimited plan to new subscribers</h3>
+        <p>existing customers migrate to metered credits ("Max") on September 1. Two details worth knowing: the Unlimited plan reportedly carried the same 2,250 monthly credits as the $35 Pro plan for fast generations, and the migration removes Explore Mode — the throttled free-generation queue that made "unlimited" true at all. <a class="src" href="https://help.runwayml.com/hc/en-us/articles/52068047744019" target="_blank" rel="noopener">source</a></p>
+      </div>
+    </div>
+
+    <p>And it's not just creative tools. On June 1, 2026, GitHub Copilot moved every plan to usage-based billing (<a href="https://github.blog/news-insights/company-news/github-copilot-is-moving-to-usage-based-billing/" target="_blank" rel="noopener">source</a>). OpenAI's Nick Turley has publicly compared unlimited AI plans to selling "unlimited electricity." The industry consensus is congealing: the AI subsidy era is ending, flat-rate is dead, everything becomes a meter.</p>
+
+    <p>We just launched an unlimited plan. Here's why we believe the consensus diagnosed the right disease and prescribed the wrong cure.</p>
+  </div>
+</section>
+
+<!-- THE COST STRUCTURE -->
+<section id="cost-structure">
+  <div class="prose">
+    <h2>The problem was never "unlimited." It was the cost structure underneath it.</h2>
+    <p>When a centralized AI company sells you unlimited generation, it is arbitraging a fixed, brutal cost: enterprise GPUs rented from clouds, or bought outright. An NVIDIA H100 runs roughly $30,000; the cloud rental meter never stops. Every marginal render is real marginal cost against that bill, so a flat-rate plan is a bet that users won't use it — and creative tools are iteration machines. The heaviest users are the most passionate customers. The plan works right up until the product succeeds, and then the GPU bill eats it. That's the story of every retreat above.</p>
+    <p>Sogni's cost structure is inverted. We render on the <strong>Sogni Supernet</strong> — a network of independent GPU operators, most running consumer cards like the RTX 4090 and 5090. We don't rent their hardware at a fixed rate. Instead, <strong>51% of net subscription revenue</strong> (net of payment fees, taxes, and refunds) accrues to a monthly worker pool, split by each operator's share of completed rendering work. Our compute cost is a percentage of revenue <em>by construction</em>. There is no fixed cloud bill to underrun. When subscribers grow, the pool grows, which recruits more supply — the same demand-attracts-supply dynamic that lets a rideshare network absorb demand spikes without owning cars.</p>
+  </div>
+</section>
+
+<!-- CONSUMER GPUS -->
+<section id="consumer-gpus">
+  <div class="prose">
+    <h2>Consumer GPUs are the right tool for this specific job</h2>
+    <p>The obvious objection: consumer cards can't compete with data-center hardware. For some workloads that's true. For this one, the economics run the other way:</p>
+    <ul>
+      <li><strong>Price per unit of hardware:</strong> an RTX 5090 lists around $2,000 versus roughly $30,000 for an H100 — 15× — while a 2025 peer-reviewed ACM study measured consumer RTX 4090 clusters delivering 62–78% of H100 throughput for LLM inference at up to 75% lower cost per token. (<a href="https://dl.acm.org/doi/full/10.1145/3775043.3775047" target="_blank" rel="noopener">source</a>)</li>
+      <li><strong>The workload fits the hardware:</strong> the most popular open image and video models — the ones the ComfyUI community actually runs — are distilled, turbo, fp8-optimized variants engineered to fit 24–32GB of consumer VRAM. Serving them on consumer silicon isn't a compromise; it's the native habitat. Slower per job in some cases, decisively cheaper per output.</li>
+      <li><strong>Idle supply:</strong> operators run hardware they already own, earning in hours it would otherwise sit dark. The Supernet holds substantial spare render capacity today — unlimited plans are, in effect, selling compute that currently goes unused.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- OPEN MODELS -->
+<section id="open-models">
+  <div class="prose">
+    <h2>The open-model wave makes the timing</h2>
+    <p>The second thing the retreats have in common: they were built on closed, per-render-licensed or self-trained frontier models — the most expensive possible substrate for an unlimited promise. Meanwhile, open-weight models crossed a quality threshold that most of the market hasn't priced in. Lightricks' LTX-2.3 — open weights, synchronized audio+video, up to 4K — was downloaded more than 2.1 million times on Hugging Face last month (<a href="https://huggingface.co/Lightricks/LTX-2.3" target="_blank" rel="noopener">source</a>). Alibaba's Z-Image Turbo: nearly one million (<a href="https://huggingface.co/Tongyi-MAI/Z-Image-Turbo" target="_blank" rel="noopener">source</a>). Krea 2 went open-weights on June 22 and was live on Sogni within days (<a href="https://venturebeat.com/technology/enterprise-grade-ai-image-generation-in-2-seconds-is-here-krea-2-raw-and-turbo-available-as-open-weights-under-custom-license" target="_blank" rel="noopener">source</a>).</p>
+    <p>The price gap is not subtle. On fal.ai — a popular GPU marketplace — a 15-second 1080p clip from ByteDance's frontier Seedance 2.0 model runs about $10.23 at posted rates ($0.682/second), versus under $1 for the open LTX-2.3 Fast model at the same length and resolution (<a href="https://fal.ai/models/bytedance/seedance-2.0/text-to-video" target="_blank" rel="noopener">source 1</a>, <a href="https://fal.ai/models/fal-ai/ltx-2.3/text-to-video/fast" target="_blank" rel="noopener">source 2</a>). More than ten-to-one, same marketplace, same clip. Frontier models are extraordinary, and we serve them — pay-as-you-go, priced honestly, because per-render vendor licensing can never hide inside a flat fee. But the creative volume — the iteration, the drafts, the 40 versions before the keeper — belongs on open models, where the marginal cost supports it.</p>
+
+    <div class="price-card">
+      <div class="pc-head">Same 15-second 1080p clip &middot; same marketplace (fal.ai posted rates)</div>
+      <div class="pc-grid">
+        <div class="pc-cell"><div class="model">Seedance 2.0 &middot; closed frontier</div><div class="price">$10.23</div><div class="per"><a href="https://fal.ai/models/bytedance/seedance-2.0/text-to-video" target="_blank" rel="noopener">$0.682 / second</a></div></div>
+        <div class="pc-vs">vs</div>
+        <div class="pc-cell open"><div class="model">LTX-2.3 Fast &middot; open weights</div><div class="price">&lt;$1</div><div class="per"><a href="https://fal.ai/models/fal-ai/ltx-2.3/text-to-video/fast" target="_blank" rel="noopener">posted rate</a></div></div>
+      </div>
+      <div class="pc-foot">More than ten-to-one. The iteration volume belongs on open models.</div>
+    </div>
+
+    <p>That's the design of Sogni Unlimited: <strong>$20/month, fair-use unlimited across the open models we host — image, video, music, and LLM chat — with the three frontier vendor models (GPT Image 2, Seedance 2.0, HappyHorse 1.1) as metered add-ons at a member discount.</strong></p>
+  </div>
+</section>
+
+<!-- FAIR USE -->
+<section id="fair-use">
+  <div class="prose">
+    <h2>"Unlimited with fair use" — what we mean, precisely</h2>
+    <p>Skepticism is warranted; the word has been abused. So here's the mechanics, published rather than buried: covered renders spend no credits — there is no monthly meter, nothing you buy and burn down. Fair use governs <em>scheduling</em>: each tier has published concurrency limits, exceptionally heavy sustained use queues behind other jobs at peak, and heavy-usage throttles reset each UTC day. Queued work gets done. The difference between this and "unlimited" plans that quietly suspend their heaviest users is that we're telling you the mechanics up front — they're the reason the promise is sustainable.</p>
+    <p>Can demand outrun the network? Three answers, in order: today there is substantial headroom; the 51% revenue share recruits supply as demand grows (and we can provision additional support nodes through rental partners like Salad profitably, because pool economics cover it); and the priority ladder protects everyone — paid pay-as-you-go jobs first, then Unlimited by tier, then free-tier jobs.</p>
+    <div class="note"><b>The priority ladder.</b> Paid pay-as-you-go jobs first, then Unlimited by tier, then free-tier jobs. Queued work gets done.</div>
+  </div>
+</section>
+
+<!-- THE BET -->
+<section id="the-bet">
+  <div class="prose">
+    <h2>The bet</h2>
+    <p>Every company that retreated from unlimited was making the same wager against its own users: <em>please don't use this too much.</em> We're making the opposite wager: that if compute costs scale with revenue instead of against it, heavy use is the business model, not the threat to it. One year and 158 million renders into the Supernet's public life, that's a bet we're structurally built to make — and the people who own the GPUs get paid 51% of net revenue to help us win it.</p>
+    <p><em>Iteration is where creative work actually happens. It shouldn't have a taxi meter running.</em></p>
+  </div>
+</section>
+
+<!-- CTA + SOURCES -->
+<section>
+  <div class="prose">
+    <div class="cta-hero">
+      <span class="cta-eyebrow">Sogni Unlimited</span>
+      <h3 class="cta-h">$20/month. No meter on the making.</h3>
+      <p class="cta-sub">Fair-use unlimited across the open models we host — image, video, music, and chat — or $199/year, with a 3-day trial for eligible new subscribers.</p>
+      <div class="btns">
+        <a class="btn primary" href="https://www.sogni.ai/unlimited" target="_blank" rel="noopener">Get Sogni Unlimited</a>
+        <a class="btn ghost" href="https://docs.sogni.ai/sogni-fast-worker" target="_blank" rel="noopener">Have a GPU? Join the network</a>
+      </div>
+    </div>
+
+    <p style="margin-top:26px"><em>Sogni Unlimited is $20/month or $199/year, with a 3-day trial for eligible new subscribers at <a href="https://www.sogni.ai/unlimited" target="_blank" rel="noopener">sogni.ai/unlimited</a>. If you have a GPU, <a href="https://docs.sogni.ai/sogni-fast-worker" target="_blank" rel="noopener">it can join the network</a>.</em></p>
+
+    <details class="sources">
+      <summary>Sources &amp; archives</summary>
+      <ol>
+        <li>Pika discontinues its Unlimited plan (Dec 2024) — <a href="https://pikalabs.org/pika-has-officially-discontinued-the-unlimited-plan/" target="_blank" rel="noopener">original</a> · <a href="https://web.archive.org/web/20260715061619/https://pikalabs.org/pika-has-officially-discontinued-the-unlimited-plan/" target="_blank" rel="noopener">archived</a></li>
+        <li>Hailuo (MiniMax) payment policy — $94.99 Unlimited closed to new buyers (Jun 2025) — <a href="https://hailuoai.video/doc/payment-policy.html" target="_blank" rel="noopener">original</a> · <a href="https://web.archive.org/web/20260715061653/https://hailuoai.video/doc/payment-policy.html" target="_blank" rel="noopener">archived</a></li>
+        <li>Freepik AI pricing — credits reintroduced, Magnific rebrand (Apr 2026) — <a href="https://www.eesel.ai/blog/freepik-ai-pricing" target="_blank" rel="noopener">original</a> · <a href="https://web.archive.org/web/20260715061723/https://www.eesel.ai/blog/freepik-ai-pricing" target="_blank" rel="noopener">archived</a></li>
+        <li>OpenAI — what to know about the Sora discontinuation (Mar 2026) — <a href="https://help.openai.com/en/articles/20001152-what-to-know-about-the-sora-discontinuation" target="_blank" rel="noopener">original</a> · <a href="https://web.archive.org/web/20260715061803/https://help.openai.com/en/articles/20001152-what-to-know-about-the-sora-discontinuation" target="_blank" rel="noopener">archived</a></li>
+        <li>Runway — Unlimited plan is switching to Max (Jun 2026) — <a href="https://help.runwayml.com/hc/en-us/articles/52068047744019" target="_blank" rel="noopener">original</a> · <a href="https://web.archive.org/web/20260715062847/https://www.eesel.ai/blog/runway-ai-pricing" target="_blank" rel="noopener">archived corroboration</a> <!-- primary un-archivable (520); archived secondary source quoting the same Max-migration terms --></li>
+        <li>GitHub Copilot is moving to usage-based billing (Jun 2026) — <a href="https://github.blog/news-insights/company-news/github-copilot-is-moving-to-usage-based-billing/" target="_blank" rel="noopener">original</a> · <a href="https://web.archive.org/web/20260715061854/https://github.blog/news-insights/company-news/github-copilot-is-moving-to-usage-based-billing/" target="_blank" rel="noopener">archived</a></li>
+        <li>ACM — Idle Consumer GPUs as a Complement to Enterprise Hardware for LLM Inference (AIBC 2025) — <a href="https://dl.acm.org/doi/full/10.1145/3775043.3775047" target="_blank" rel="noopener">original</a> · <a href="https://web.archive.org/web/20260715062817/https://io.net/blog/consumer-gpus-can-cut-ai-inference-costs" target="_blank" rel="noopener">archived corroboration</a> <!-- primary un-archivable (520); archived io.net writeup carrying the exact 62–78% / 75% figures --></li>
+        <li>Lightricks LTX-2.3 on Hugging Face — <a href="https://huggingface.co/Lightricks/LTX-2.3" target="_blank" rel="noopener">original</a> · <a href="https://web.archive.org/web/20260715061952/https://huggingface.co/Lightricks/LTX-2.3" target="_blank" rel="noopener">archived</a></li>
+        <li>Alibaba Z-Image Turbo on Hugging Face — <a href="https://huggingface.co/Tongyi-MAI/Z-Image-Turbo" target="_blank" rel="noopener">original</a> · <a href="https://web.archive.org/web/20260715062026/https://huggingface.co/Tongyi-MAI/Z-Image-Turbo" target="_blank" rel="noopener">archived</a></li>
+        <li>VentureBeat — Krea 2 Raw and Turbo available as open weights (Jun 2026) — <a href="https://venturebeat.com/technology/enterprise-grade-ai-image-generation-in-2-seconds-is-here-krea-2-raw-and-turbo-available-as-open-weights-under-custom-license" target="_blank" rel="noopener">original</a> · <a href="https://web.archive.org/web/20260624080530/https://venturebeat.com/technology/enterprise-grade-ai-image-generation-in-2-seconds-is-here-krea-2-raw-and-turbo-available-as-open-weights-under-custom-license" target="_blank" rel="noopener">archived</a></li>
+        <li>fal.ai — ByteDance Seedance 2.0 text-to-video pricing — <a href="https://fal.ai/models/bytedance/seedance-2.0/text-to-video" target="_blank" rel="noopener">original</a> · <a href="https://web.archive.org/web/20260715062124/https://fal.ai/models/bytedance/seedance-2.0/text-to-video" target="_blank" rel="noopener">archived</a></li>
+        <li>fal.ai — LTX-2.3 Fast text-to-video pricing — <a href="https://fal.ai/models/fal-ai/ltx-2.3/text-to-video/fast" target="_blank" rel="noopener">original</a> · <a href="https://web.archive.org/web/20260715062218/https://fal.ai/models/fal-ai/ltx-2.3/text-to-video/fast" target="_blank" rel="noopener">archived</a></li>
+      </ol>
+    </details>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="band">
+    <p class="privacy">We care about your data in our <a href="https://www.sogni.ai/privacy-policy">privacy policy</a>.</p>
+    <div class="fbar">
+      <a class="wordmark" href="https://www.sogni.ai/"><img src="https://cdn.prod.website-files.com/6630875599550e7ce589dac0/697b965e99cf495a05a7745e_logoSogni_parentBrand_WordMark_DarkMode_White.png" alt="Sogni"></a>
+      <div class="social">
+        <a href="https://discord.gg/2JjzA2zrrc" aria-label="Discord" title="Discord"><svg viewBox="0 0 24 24"><path d="M20 5a17 17 0 0 0-4.2-1.3l-.2.5a13 13 0 0 1 3.7 1.2 14 14 0 0 0-12 0A13 13 0 0 1 11 4.2L10.8 3.7A17 17 0 0 0 6.5 5C3.7 9 3 13 3.3 17a17 17 0 0 0 5.2 2.6l.4-1a11 11 0 0 1-1.8-.9l.4-.3a12 12 0 0 0 10.6 0l.4.3a11 11 0 0 1-1.8.9l.4 1A17 17 0 0 0 22 17c.4-4.7-.7-8.7-2-12zM9.3 14.7c-.8 0-1.5-.8-1.5-1.7s.7-1.7 1.5-1.7 1.5.8 1.5 1.7-.7 1.7-1.5 1.7zm5.4 0c-.8 0-1.5-.8-1.5-1.7s.7-1.7 1.5-1.7 1.5.8 1.5 1.7-.7 1.7-1.5 1.7z"/></svg></a>
+        <a href="https://t.me/sogniai" aria-label="Telegram" title="Telegram"><svg viewBox="0 0 24 24"><path d="M21.9 4.4 2.9 11.6c-1 .4-1 1.4-.2 1.7l4.9 1.5 1.8 5.7c.2.6.4.7.9.4l2.7-2 4.7 3.5c.6.3 1 .1 1.2-.6L23 5.5c.2-.9-.4-1.4-1.1-1.1zM8.6 14.2l8.6-5.4c.4-.2.8.1.5.4l-7 6.3-.3 3-1.4-4.3z"/></svg></a>
+        <a href="https://www.youtube.com/@SogniAI?sub_confirmation=1" aria-label="YouTube" title="YouTube"><svg viewBox="0 0 24 24"><path d="M23 7.5a3 3 0 0 0-2-2.1C19 5 12 5 12 5s-7 0-9 .4A3 3 0 0 0 1 7.5 31 31 0 0 0 .7 12 31 31 0 0 0 1 16.5a3 3 0 0 0 2 2.1C5 19 12 19 12 19s7 0 9-.4a3 3 0 0 0 2-2.1c.3-1.5.3-4.5.3-4.5s0-3-.3-4.5zM9.8 14.8V9.2l4.8 2.8z"/></svg></a>
+        <a href="https://www.reddit.com/r/Sogni_Protocol/" aria-label="Reddit" title="Reddit"><svg viewBox="0 0 24 24"><path d="M22 11.2a2 2 0 0 0-3.4-1.4 9.8 9.8 0 0 0-5-1.5l.9-4 2.8.6a1.4 1.4 0 1 0 .2-1l-3.4-.7c-.2 0-.4.1-.4.3l-1 4.5a9.8 9.8 0 0 0-5.1 1.5A2 2 0 1 0 4 13.6a3.7 3.7 0 0 0 0 .7c0 3.3 3.6 5.9 8 5.9s8-2.6 8-5.9a3.7 3.7 0 0 0 0-.7 2 2 0 0 0 1-1.4zM8 13.5a1.4 1.4 0 1 1 1.4 1.4A1.4 1.4 0 0 1 8 13.5zm6.8 3.3a4.8 4.8 0 0 1-2.8.8 4.8 4.8 0 0 1-2.8-.8.4.4 0 0 1 .5-.6 4 4 0 0 0 2.3.6 4 4 0 0 0 2.3-.6.4.4 0 1 1 .5.6zm-.2-1.9a1.4 1.4 0 1 1 1.4-1.4 1.4 1.4 0 0 1-1.4 1.4z"/></svg></a>
+        <a href="https://instagram.com/sogni.ai" aria-label="Instagram" title="Instagram"><svg viewBox="0 0 24 24"><path d="M12 2c-2.7 0-3 0-4.1.1-1 0-1.8.2-2.4.5a4.9 4.9 0 0 0-1.8 1.1A4.9 4.9 0 0 0 2.6 5.5c-.3.6-.5 1.4-.5 2.4C2 9 2 9.3 2 12s0 3 .1 4.1c0 1 .2 1.8.5 2.4a4.9 4.9 0 0 0 1.1 1.8 4.9 4.9 0 0 0 1.8 1.1c.6.3 1.4.5 2.4.5C9 22 9.3 22 12 22s3 0 4.1-.1c1 0 1.8-.2 2.4-.5a5.1 5.1 0 0 0 2.9-2.9c.3-.6.5-1.4.5-2.4C22 15 22 14.7 22 12s0-3-.1-4.1c0-1-.2-1.8-.5-2.4a4.9 4.9 0 0 0-1.1-1.8 4.9 4.9 0 0 0-1.8-1.1c-.6-.3-1.4-.5-2.4-.5C15 2 14.7 2 12 2zm0 1.8c2.7 0 3 0 4 .1.9 0 1.5.2 1.8.3.5.2.8.4 1.1.7.3.3.5.6.7 1.1.1.3.3.9.3 1.8.1 1 .1 1.3.1 4s0 3-.1 4c0 .9-.2 1.5-.3 1.8-.2.5-.4.8-.7 1.1-.3.3-.6.5-1.1.7-.3.1-.9.3-1.8.3-1 .1-1.3.1-4 .1s-3 0-4-.1c-.9 0-1.5-.2-1.8-.3-.5-.2-.8-.4-1.1-.7-.3-.3-.5-.6-.7-1.1-.1-.3-.3-.9-.3-1.8-.1-1-.1-1.3-.1-4s0-3 .1-4c0-.9.2-1.5.3-1.8.2-.5.4-.8.7-1.1.3-.3.6-.5 1.1-.7.3-.1.9-.3 1.8-.3 1-.1 1.3-.1 4-.1zm0 3.1A5.1 5.1 0 1 0 17.1 12 5.1 5.1 0 0 0 12 6.9zm0 8.4A3.3 3.3 0 1 1 15.3 12 3.3 3.3 0 0 1 12 15.3zm5.3-8.6a1.2 1.2 0 1 0 1.2 1.2 1.2 1.2 0 0 0-1.2-1.2z"/></svg></a>
+        <a href="https://twitter.com/sogni_protocol" aria-label="X" title="X"><svg viewBox="0 0 24 24"><path d="M18.2 2h3.3l-7.2 8.2L23 22h-6.6l-5.2-6.8L5.3 22H2l7.7-8.8L1.7 2h6.8l4.7 6.2zm-1.2 18h1.8L7.1 3.9H5.2z"/></svg></a>
+        <a href="https://www.linkedin.com/company/sogni-ai" aria-label="LinkedIn" title="LinkedIn"><svg viewBox="0 0 24 24"><path d="M20.4 3H3.6A.6.6 0 0 0 3 3.6v16.8a.6.6 0 0 0 .6.6h16.8a.6.6 0 0 0 .6-.6V3.6a.6.6 0 0 0-.6-.6zM8.3 18.3H5.5V9.5h2.8zM6.9 8.3a1.6 1.6 0 1 1 1.6-1.6 1.6 1.6 0 0 1-1.6 1.6zm11.4 10H15.5v-4.3c0-1 0-2.3-1.4-2.3s-1.6 1.1-1.6 2.3v4.3H9.7V9.5h2.7v1.2a3 3 0 0 1 2.7-1.5c2.9 0 3.4 1.9 3.4 4.3z"/></svg></a>
+        <a href="https://github.com/Sogni-AI" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24"><path d="M12 .5C5.7.5.5 5.7.5 12c0 5.1 3.3 9.4 7.9 10.9.6.1.8-.3.8-.6v-2c-3.2.7-3.9-1.5-3.9-1.5-.5-1.3-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.7 1.3 3.4 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17 4.7 18 5 18 5c.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A11.5 11.5 0 0 0 23.5 12C23.5 5.7 18.3.5 12 .5z"/></svg></a>
+        <a href="https://medium.com/sogni" aria-label="Medium" title="Medium"><svg viewBox="0 0 24 24"><path d="M2.8 7.4a.7.7 0 0 0-.2-.6L1.1 5.1V5H6l3.7 8.1L13 5h4.6v.1l-1.3 1.2a.4.4 0 0 0-.1.4v9.2a.4.4 0 0 0 .1.4l1.2 1.2v.1h-6v-.1l1.3-1.3c.1-.1.1-.1.1-.4V8.1l-3.6 9.1h-.5L4.6 8.1v6.1a.9.9 0 0 0 .2.7l1.7 2v.1H1.7v-.1l1.7-2a.8.8 0 0 0 .2-.7z"/></svg></a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  /* scroll-driven video scrubbing + captions */
+  (function(){
+    var wrap = document.getElementById('scrolly');
+    if (!wrap) return;
+    var video = wrap.querySelector('.scrolly-video');
+    var caps = [].slice.call(wrap.querySelectorAll('.scrolly-cap'));
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+      video.loop = true;
+      video.autoplay = true;
+      video.play().catch(function(){});
+      caps[caps.length-1].style.opacity = 1;
+      wrap.style.height = '100svh';
+      wrap.style.marginBottom = '0';
+      return;
+    }
+
+    var dur = 0, current = 0;
+    video.addEventListener('loadedmetadata', function(){ dur = video.duration; });
+
+    function progress(){
+      var r = wrap.getBoundingClientRect();
+      /* minus 2 viewports: one for the sticky itself, one for the overlapped hand-off to the article */
+      var total = r.height - 2 * window.innerHeight;
+      return total > 0 ? Math.max(0, Math.min(1, -r.top / total)) : 0;
+    }
+    function onScreen(){
+      var r = wrap.getBoundingClientRect();
+      return r.bottom > 0 && r.top < window.innerHeight;
+    }
+    /* opacity within [a,b]: fade on the edges; the first caption starts fully visible */
+    function fade(p, a, b){
+      if (p < a || p > b) return 0;
+      var f = 0.18 * (b - a);
+      if (a > 0.001 && p < a + f) return (p - a) / f;
+      if (p > b - f) return (b - p) / f;
+      return 1;
+    }
+
+    var dim = wrap.querySelector('.scrolly-dim');
+    var stickyStars = [].slice.call(wrap.querySelectorAll('.stars'));
+    function render(){
+      if (onScreen()){
+        var p = progress();
+        /* keep the scroll hint up until the animation is nearly done */
+        wrap.classList.toggle('started', p > 0.9);
+        if (dur){
+          var target = p * (dur - 0.05);
+          current += (target - current) * 0.22;
+          if (Math.abs(target - current) > 1.5) current = target;
+          try { video.currentTime = current; } catch(e){}
+        }
+        /* gentle settle for most of the ride, then an accelerating pull into the tunnel;
+           a slight spin makes the pull readable even on the smooth vortex frames */
+        var s, rot = 0;
+        if (p < 0.8){ s = 1.12 - 0.12 * (p / 0.8); }
+        else { var q = (p - 0.8) / 0.2; s = 1 + 1.1 * q * q; rot = 10 * q * q; }
+        video.style.transform = 'scale(' + s.toFixed(4) + ') rotate(' + rot.toFixed(2) + 'deg)';
+        caps.forEach(function(c){
+          var a = parseFloat(c.dataset.from), b = parseFloat(c.dataset.to);
+          c.style.opacity = fade(p, a, b);
+          var drift = (p - (a + b) / 2) * -46;
+          c.style.transform = 'translate(-50%, calc(-50% + ' + drift.toFixed(1) + 'px))';
+        });
+        /* dim the final frame under the incoming article — starts late so the pull stays visible */
+        var dimT = p > 0.88 ? Math.min(1, (p - 0.88) / 0.12) : 0;
+        dim.style.opacity = dimT * 0.88;
+        stickyStars.forEach(function(el){ el.style.opacity = dimT; });
+      }
+      requestAnimationFrame(render);
+    }
+    requestAnimationFrame(render);
+  })();
+
+  document.querySelectorAll('.copybtn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var el = document.getElementById(btn.getAttribute('data-copy'));
+      if(!el) return;
+      navigator.clipboard.writeText(el.innerText).then(function(){
+        var t = btn.textContent; btn.textContent = 'Copied';
+        setTimeout(function(){ btn.textContent = t; }, 1400);
+      });
+    });
+  });
+
+  /* image lightbox: click any content image to open fullscreen; close via X, backdrop, or Esc */
+  (function(){
+    var lb = document.createElement('div');
+    lb.className = 'lightbox';
+    lb.innerHTML = '<button class="lb-close" aria-label="Close">&times;</button><img alt="">';
+    document.body.appendChild(lb);
+    var lbImg = lb.querySelector('img');
+    var closeBtn = lb.querySelector('.lb-close');
+    function openLb(src, alt){ lbImg.src = src; lbImg.alt = alt || ''; lb.classList.add('open'); document.body.style.overflow = 'hidden'; }
+    function closeLb(){ lb.classList.remove('open'); lbImg.removeAttribute('src'); document.body.style.overflow = ''; }
+    document.querySelectorAll('img').forEach(function(im){
+      if (im.closest('.topbar') || im.closest('.bn-header') || im.closest('footer') || im.closest('.lightbox')) return;
+      im.classList.add('lb-zoom');
+      im.addEventListener('click', function(){ openLb(im.currentSrc || im.src, im.alt); });
+    });
+    closeBtn.addEventListener('click', closeLb);
+    lb.addEventListener('click', function(e){ if (e.target === lb) closeLb(); });
+    document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && lb.classList.contains('open')) closeLb(); });
+  })();
+</script>
+</body>
+</html>
