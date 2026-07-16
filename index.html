@@ -81,7 +81,8 @@
   @supports(height:100svh){.scrolly{margin-bottom:-100svh}}
   .scrolly ~ *{position:relative;z-index:1}
   .scrolly-sticky{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden;background:#020302}
-  .scrolly-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform-origin:center;will-change:transform}
+  .scrolly-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform-origin:center;will-change:transform;opacity:0}
+  .scrolly-video.is-ready{opacity:1}
   .scrolly-vignette{position:absolute;inset:0;pointer-events:none;
     background:radial-gradient(ellipse at center,transparent 42%,rgba(2,4,2,.55) 100%),
                linear-gradient(180deg,rgba(2,4,2,.4),transparent 22%,transparent 78%,rgba(2,4,2,.5))}
@@ -1383,6 +1384,7 @@ body[data-bn-current^="newsletter"]::after {
     var caps = [].slice.call(wrap.querySelectorAll('.scrolly-cap'));
 
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+      video.classList.add('is-ready');
       video.loop = true;
       video.autoplay = true;
       video.play().catch(function(){});
@@ -1393,7 +1395,6 @@ body[data-bn-current^="newsletter"]::after {
     }
 
     var dur = 0, current = 0;
-    video.addEventListener('loadedmetadata', function(){ dur = video.duration; });
 
     function progress(){
       var r = wrap.getBoundingClientRect();
@@ -1401,6 +1402,18 @@ body[data-bn-current^="newsletter"]::after {
       var total = r.height - 2 * window.innerHeight;
       return total > 0 ? Math.max(0, Math.min(1, -r.top / total)) : 0;
     }
+    function syncInitialFrame(){
+      dur = video.duration || 0;
+      if (!dur) return;
+      current = progress() * (dur - 0.05);
+      var reveal = function(){ video.classList.add('is-ready'); };
+      video.addEventListener('seeked', reveal, {once:true});
+      video.addEventListener('loadeddata', reveal, {once:true});
+      try { video.currentTime = current; } catch(e){}
+      if (video.readyState >= 2 && Math.abs(video.currentTime - current) < 0.04) reveal();
+    }
+    if (video.readyState >= 1) syncInitialFrame();
+    else video.addEventListener('loadedmetadata', syncInitialFrame, {once:true});
     function onScreen(){
       var r = wrap.getBoundingClientRect();
       return r.bottom > 0 && r.top < window.innerHeight;
