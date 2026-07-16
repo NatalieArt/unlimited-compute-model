@@ -5,6 +5,8 @@
   var MOBILE_CACHE_LIMIT = 10;
   var PREVIEW_SHEET_CACHE_LIMIT = 5;
   var PREVIEW_LOOKAHEAD = 4;
+  var HD_PREVIEW_SHEET_CACHE_LIMIT = 4;
+  var HD_PREVIEW_LOOKAHEAD = 2;
   var SETTLE_DELAY = 120;
   var MAX_DPR = 2;
 
@@ -16,6 +18,17 @@
     var value = String(index);
     while (value.length < width) value = '0' + value;
     return value;
+  }
+
+  function allowsHdPreview(navigatorObject) {
+    var connection = navigatorObject && (
+      navigatorObject.connection || navigatorObject.mozConnection || navigatorObject.webkitConnection
+    );
+    if (!connection) return true;
+    if (connection.saveData) return false;
+    if (connection.effectiveType === 'slow-2g') return false;
+    if (connection.effectiveType === '2g') return false;
+    return true;
   }
 
   function create(canvas, options) {
@@ -43,6 +56,16 @@
     var previewTileHeight = Number(options.previewTileHeight || canvas.getAttribute(previewHeightAttribute) || 0);
     var previewTilesPerSheet = previewColumns * previewRows;
     var previewSheetCount = previewTilesPerSheet > 0 ? Math.ceil(previewCount / previewTilesPerSheet) : 0;
+    var hdEnabled = !isMobile && allowsHdPreview(global.navigator);
+    var hdRoot = options.hdRoot || canvas.getAttribute('data-preview-root-desktop-hd') || '';
+    var hdCount = Number(options.hdCount || canvas.getAttribute('data-preview-count-desktop-hd') || 0);
+    var hdStep = Number(options.hdStep || canvas.getAttribute('data-preview-step-desktop-hd') || 1);
+    var hdColumns = Number(options.hdColumns || canvas.getAttribute('data-preview-columns-desktop-hd') || 1);
+    var hdRows = Number(options.hdRows || canvas.getAttribute('data-preview-rows-desktop-hd') || 1);
+    var hdTileWidth = Number(options.hdTileWidth || canvas.getAttribute('data-preview-width-desktop-hd') || 0);
+    var hdTileHeight = Number(options.hdTileHeight || canvas.getAttribute('data-preview-height-desktop-hd') || 0);
+    var hdTilesPerSheet = hdColumns * hdRows;
+    var hdSheetCount = hdTilesPerSheet > 0 ? Math.ceil(hdCount / hdTilesPerSheet) : 0;
     var cacheLimit = isMobile ? MOBILE_CACHE_LIMIT : DESKTOP_CACHE_LIMIT;
 
     if (!frameRoot || frameCount < 1) return null;
@@ -54,6 +77,13 @@
     var previewFailed = new Set();
     var previewCenterSheet = 0;
     var previewDirection = 1;
+    var hdSheets = new Map();
+    var hdLoading = new Set();
+    var hdFailed = new Set();
+    var hdCenterSheet = 0;
+    var hdDirection = 1;
+    var hdStarted = false;
+    var hdStartTimer = 0;
     var exactLoadingImage = null;
     var exactLoadingIndex = -1;
     var exactLoadToken = 0;
@@ -75,6 +105,10 @@
 
     function previewUrl(index) {
       return assetUrl(previewRoot, String(index));
+    }
+
+    function hdUrl(index) {
+      return assetUrl(hdRoot, String(index));
     }
 
     function decodeImage(image, callback) {
@@ -176,6 +210,13 @@
       canvas.setAttribute('data-drawn-frame', String(index));
       canvas.setAttribute('data-render-mode', mode);
       canvas.classList.add('is-ready');
+      if (hdEnabled && !hdStarted && hdRoot && hdSheetCount) {
+        hdStarted = true;
+        hdStartTimer = global.setTimeout(function () {
+          hdStartTimer = 0;
+          ensureHdPreview(targetFrame, previewDirection);
+        }, 0);
+      }
     }
 
     function drawFullFrame(index, mode) {
@@ -227,12 +268,37 @@
       return true;
     }
 
+    function hdTile(index) {
+      index = clamp(index, 0, hdCount - 1);
+      var sheetIndex = Math.floor(index / hdTilesPerSheet);
+      var cellIndex = index % hdTilesPerSheet;
+      var image = hdSheets.get(sheetIndex);
+      if (!image) return null;
+      return {
+        image: image,
+        x: (cellIndex % hdColumns) * hdTileWidth,
+        y: Math.floor(cellIndex / hdColumns) * hdTileHeight
+      };
+    }
+
+    function drawHdPreview(frame) {
+      if (!hdEnabled || !hdCount || !hdRoot || !hdTileWidth || !hdTileHeight) return false;
+      var hdPreviewIndex = clamp(Math.round(frame / hdStep), 0, hdCount - 1);
+      var hdPreviewFrame = Math.min(frameCount - 1, hdPreviewIndex * hdStep);
+      if (renderMode === 'preview-hd' && drawnFrame === hdPreviewFrame) return true;
+
+      var tile = hdTile(hdPreviewIndex);
+      if (!tile) return false;
+      if (!drawRegion(tile.image, tile.x, tile.y, hdTileWidth, hdTileHeight, 1, true)) return false;
+
+      setRenderedState(hdPreviewFrame, 'preview-hd');
+      return true;
+    }
+
     function drawBestFrame() {
       drawRequest = 0;
-      var isMoving = Date.now() - lastTargetChange < SETTLE_DELAY;
-
-      if (isMoving && drawSharpPreview(targetFrame)) return;
       if (loaded.has(targetFrame) && drawFullFrame(targetFrame, 'full')) return;
+      if (drawHdPreview(targetFrame)) return;
       if (drawSharpPreview(targetFrame)) return;
 
       var fallback = nearestLoaded(targetFrame);
@@ -267,6 +333,66 @@
         var index = candidates.shift();
         if (index !== centerSheet) previewSheets.delete(index);
       }
+    }
+
+    function trimHdSheets(centerSheet) {
+      if (hdSheets.size <= HD_PREVIEW_SHEET_CACHE_LIMIT) return;
+      var keep = new Set();
+      for (var distance = 0; distance <= HD_PREVIEW_LOOKAHEAD; distance += 1) {
+        var keepIndex = centerSheet + distance * hdDirection;
+        if (keepIndex >= 0 && keepIndex < hdSheetCount) keep.add(keepIndex);
+      }
+      var candidates = Array.from(hdSheets.keys()).sort(function (a, b) {
+        if (keep.has(a) !== keep.has(b)) return keep.has(a) ? 1 : -1;
+        return Math.abs(b - centerSheet) - Math.abs(a - centerSheet);
+      });
+      while (hdSheets.size > HD_PREVIEW_SHEET_CACHE_LIMIT && candidates.length) {
+        var index = candidates.shift();
+        if (index !== centerSheet) hdSheets.delete(index);
+      }
+    }
+
+    function loadHdSheet(index, urgent) {
+      if (!hdEnabled || index < 0 || index >= hdSheetCount) return;
+      if (hdSheets.has(index) || hdLoading.has(index) || hdFailed.has(index)) return;
+
+      var image = new Image();
+      var finished = false;
+      hdLoading.add(index);
+      if ('fetchPriority' in image) image.fetchPriority = urgent ? 'high' : 'low';
+      image.decoding = 'async';
+      image.onload = function () {
+        decodeImage(image, function () {
+          if (finished) return;
+          finished = true;
+          hdLoading.delete(index);
+          if (!destroyed) {
+            hdSheets.set(index, image);
+            trimHdSheets(hdCenterSheet);
+            scheduleDraw();
+          }
+        });
+      };
+      image.onerror = function () {
+        if (finished) return;
+        finished = true;
+        hdLoading.delete(index);
+        hdFailed.add(index);
+        canvas.setAttribute('data-hd-errors', String(hdFailed.size));
+      };
+      image.src = hdUrl(index);
+    }
+
+    function ensureHdPreview(frame, direction) {
+      if (!hdEnabled || !hdStarted || !hdRoot || !hdSheetCount || !hdTileWidth || !hdTileHeight) return;
+      hdDirection = direction < 0 ? -1 : 1;
+      var hdPreviewIndex = clamp(Math.round(frame / hdStep), 0, hdCount - 1);
+      hdCenterSheet = Math.floor(hdPreviewIndex / hdTilesPerSheet);
+      loadHdSheet(hdCenterSheet, true);
+      for (var distance = 1; distance <= HD_PREVIEW_LOOKAHEAD; distance += 1) {
+        loadHdSheet(hdCenterSheet + distance * hdDirection, false);
+      }
+      trimHdSheets(hdCenterSheet);
     }
 
     function loadPreviewAhead() {
@@ -380,6 +506,7 @@
       }
       canvas.setAttribute('data-target-frame', String(targetFrame));
       ensurePreviewSheets(targetFrame, direction);
+      ensureHdPreview(targetFrame, direction);
       scheduleDraw();
     }
 
@@ -387,10 +514,13 @@
       destroyed = true;
       if (drawRequest) global.cancelAnimationFrame(drawRequest);
       if (settleTimer) global.clearTimeout(settleTimer);
+      if (hdStartTimer) global.clearTimeout(hdStartTimer);
       abortExactLoad();
       loaded.clear();
       previewSheets.clear();
       previewLoading.clear();
+      hdSheets.clear();
+      hdLoading.clear();
     }
 
     function getState() {
@@ -407,7 +537,11 @@
         previewVariant: previewVariant,
         previewSheetCount: previewSheets.size,
         previewLoadingCount: previewLoading.size,
-        previewFailedCount: previewFailed.size
+        previewFailedCount: previewFailed.size,
+        hdEnabled: hdEnabled,
+        hdSheetCount: hdSheets.size,
+        hdLoadingCount: hdLoading.size,
+        hdFailedCount: hdFailed.size
       };
     }
 
@@ -415,6 +549,7 @@
     loadPreviewSheets();
     ensureExactTarget(0);
     canvas.setAttribute('data-target-frame', '0');
+    canvas.setAttribute('data-hd-enabled', hdEnabled ? 'true' : 'false');
     armSettleDraw();
 
     var api = {

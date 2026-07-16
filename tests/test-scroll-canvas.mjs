@@ -136,6 +136,27 @@ for (const contract of [
 ]) {
   assert.ok(runtime.includes(contract), `runtime must include ${contract}`);
 }
+for (const contract of [
+  'HD_PREVIEW_SHEET_CACHE_LIMIT = 4',
+  'HD_PREVIEW_LOOKAHEAD = 2',
+  'function allowsHdPreview(navigatorObject)',
+  'connection.saveData',
+  "connection.effectiveType === 'slow-2g'",
+  "connection.effectiveType === '2g'",
+  'var hdEnabled = !isMobile && allowsHdPreview(global.navigator);',
+  'function drawHdPreview(frame)',
+  'function ensureHdPreview(frame, direction)',
+  "setRenderedState(hdPreviewFrame, 'preview-hd');",
+  "canvas.setAttribute('data-hd-enabled', hdEnabled ? 'true' : 'false');",
+  "canvas.setAttribute('data-hd-errors', String(hdFailed.size));",
+]) {
+  assert.ok(runtime.includes(contract), `runtime must include HD contract: ${contract}`);
+}
+const exactDrawIndex = runtime.indexOf("drawFullFrame(targetFrame, 'full')");
+const hdDrawIndex = runtime.indexOf('drawHdPreview(targetFrame)');
+const standardDrawIndex = runtime.indexOf('drawSharpPreview(targetFrame)', hdDrawIndex);
+assert.ok(exactDrawIndex >= 0 && hdDrawIndex > exactDrawIndex && standardDrawIndex > hdDrawIndex,
+  'render order must be exact frame, HD preview, then standard preview');
 assert.ok(!runtime.includes('currentTime'), 'canvas runtime must not seek video');
 assert.ok(!runtime.includes('idleCursor'), 'runtime must not background-load the entire sequence');
 assert.ok(!runtime.includes('SPARSE_BATCH_SIZE'), 'sparse keyframes must not be artificially delayed in batches');
