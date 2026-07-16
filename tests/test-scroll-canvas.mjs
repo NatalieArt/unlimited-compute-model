@@ -35,25 +35,34 @@ for (const track of [
     directory: 'gpu-scroll-preview-desktop',
     dimensions: '3840,540',
     budget: 8 * 1024 * 1024,
+    expectedCount: 31,
   },
   {
     name: 'mobile',
     directory: 'gpu-scroll-preview-mobile',
     dimensions: '1800,800',
     budget: 5.5 * 1024 * 1024,
+    expectedCount: 31,
+  },
+  {
+    name: 'desktop-hd',
+    directory: 'gpu-scroll-preview-desktop-hd',
+    dimensions: '4320,810',
+    budget: 32 * 1024 * 1024,
+    expectedCount: 61,
   },
 ]) {
   const previewDir = path.join(root, 'assets', track.directory);
   const previewSheets = fs.existsSync(previewDir)
     ? fs.readdirSync(previewDir)
-      .filter((name) => /^sheet-(?:[0-9]|[12][0-9]|30)\.webp$/.test(name))
+      .filter((name) => /^sheet-\d+\.webp$/.test(name))
       .sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]))
     : [];
 
   assert.deepEqual(
     previewSheets,
-    Array.from({ length: 31 }, (_, index) => `sheet-${index}.webp`),
-    `expected thirty-one ${track.name} preview sheets, found ${previewSheets.join(', ') || 'none'}`,
+    Array.from({ length: track.expectedCount }, (_, index) => `sheet-${index}.webp`),
+    `expected ${track.expectedCount} ${track.name} preview sheets, found ${previewSheets.join(', ') || 'none'}`,
   );
 
   let previewBytes = 0;
@@ -77,6 +86,12 @@ for (const track of [
   );
   console.log(`PASS: ${track.name} preview sheets total ${previewBytes} bytes`);
 }
+
+const builder = fs.readFileSync(path.join(root, 'scripts', 'build-scroll-preview.py'), 'utf8');
+assert.ok(builder.includes('"desktop-hd"'), 'builder must define desktop-hd track');
+assert.ok(builder.includes('"step": 2'), 'desktop-hd track must sample every 2 frames');
+assert.ok(builder.includes('"grid": (3, 1)'), 'desktop-hd track must use a 3 x 1 grid');
+assert.ok(builder.includes('"quality": 76'), 'desktop-hd track must use WebP quality 76');
 
 const runtimePath = path.join(root, 'assets', 'gpu-scroll-canvas.js');
 assert.ok(fs.existsSync(runtimePath), 'canvas runtime must exist');
