@@ -68,20 +68,23 @@ const runtime = fs.readFileSync(runtimePath, 'utf8');
 
 for (const contract of [
   'MAX_CONCURRENT = 6',
-  'DESKTOP_CACHE_LIMIT = 72',
-  'MOBILE_CACHE_LIMIT = 36',
+  'DESKTOP_CACHE_LIMIT = 36',
+  'MOBILE_CACHE_LIMIT = 18',
   'NEIGHBOR_RADIUS = 3',
-  'DESKTOP_NAVIGATION_STEP = 18',
-  'MOBILE_NAVIGATION_STEP = 24',
+  'SETTLE_DELAY = 120',
   'var loading = new Set()',
   'loading.has(index)',
   'urgentQueued',
   'fetchPriority',
+  'image.decode',
+  'loadPreviewSheets',
+  'drawPreviewBlend',
+  'preview-blend',
+  'full-fallback',
   'pruneQueue',
   'data-target-frame',
   'requestAnimationFrame',
   'drawImage',
-  'requestIdleCallback',
   'SogniScrollCanvas',
   '__sogniScrollCanvas',
 ]) {
@@ -90,6 +93,8 @@ for (const contract of [
 assert.ok(!runtime.includes('currentTime'), 'canvas runtime must not seek video');
 assert.ok(!runtime.includes('idleCursor'), 'runtime must not background-load the entire sequence');
 assert.ok(!runtime.includes('SPARSE_BATCH_SIZE'), 'sparse keyframes must not be artificially delayed in batches');
+assert.ok(!runtime.includes('warmNavigationFrames'), 'runtime must not warm sparse full-resolution navigation frames');
+assert.ok(!runtime.includes('navigationFrames'), 'runtime must not keep a sparse full-resolution navigation set');
 assert.ok(
   runtime.indexOf('enqueue(index - distance * direction, true)') < runtime.indexOf('enqueue(index + distance * direction, true)'),
   'reverse neighbor must be queued before forward neighbor so unshift prioritizes the scroll direction',
